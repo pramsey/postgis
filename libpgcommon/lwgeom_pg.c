@@ -18,6 +18,7 @@
 #include <fmgr.h>
 #include <executor/spi.h>
 #include <miscadmin.h>
+#include <utils/expandeddatum.h>
 
 #include "../postgis_config.h"
 #include "liblwgeom.h"
@@ -279,3 +280,65 @@ lwpgerror(const char *fmt, ...)
 
 	va_end(ap);
 }
+
+
+/*****************************************************************************
+* Support for "expanded objects" available in PostgreSQL 9.5+
+* instead of serializing an LWGEOM, we pass it in a pointer and 
+* let the system serialize it opportunistically as needed (practically, 
+* when it's actually time to write a tuple.
+*****************************************************************************/
+
+typedef struct GSERIALIZED_EXPANDED
+{
+	/* Standard header for expanded objects */
+	ExpandedObjectHeader hdr;
+	/* Pointer to our memory object */
+	LWGEOM *geom;
+} GSERIALIZED_EXPANDED;
+
+/* For functions that have to read these things */
+typedef union GSERIALIZED_ANY
+{
+	GSERIALIZED	flt;
+	GSERIALIZED_EXPANDED xpn;
+} GSERIALIZED_ANY;
+
+/* "Methods" required for an expanded object */
+static Size GSER_get_flat_size(ExpandedObjectHeader *eohptr)
+{
+	GSERIALIZED_EXPANDED *gserx = (GSERIALIZED_EXPANDED*)eohptr;
+	return gserialized_from_lwgeom_size(gserx->geom);
+}
+
+/* "Methods" required for an expanded object */
+static void GSER_flatten_into(ExpandedObjectHeader *eohptr, void *result, Size allocated_size)
+{
+	GSERIALIZED_EXPANDED *gserx = (GSERIALIZED_EXPANDED*)eohptr;
+	gserialized_from_lwgeom_flatten(gserx->geom, (GSERIALIZED *)result, allocated_size);
+	return;
+}
+
+/*
+* Expanded objects need to know how to serialize themselves, so
+* we provide callbacks to functions that can do that.
+*/
+static const ExpandedObjectMethods GSER_methods =
+{
+	GSER_get_flat_size,
+	GSER_flatten_into
+};
+
+
+/*
+static GSERIALIZED_EXPANDED* geometry_serialize_expanded(LWGEOM *lwgeom)
+{
+	size_t ret_size = 0;
+	GSERIALIZED *g = NULL;
+
+	g = gserialized_from_lwgeom(lwgeom, &ret_size);
+	if ( ! g ) lwpgerror("Unable to serialize lwgeom.");
+	SET_VARSIZE(g, ret_size);
+	return g;
+}
+*/

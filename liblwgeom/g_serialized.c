@@ -928,17 +928,8 @@ static size_t gserialized_from_gbox(const GBOX *gbox, uint8_t *buf)
 	return return_size;
 }
 
-/* Public function */
-
-GSERIALIZED* gserialized_from_lwgeom(LWGEOM *geom, size_t *size)
+static void gserialized_from_lwgeom_prepare(LWGEOM *geom)
 {
-	size_t expected_size = 0;
-	size_t return_size = 0;
-	uint8_t *serialized = NULL;
-	uint8_t *ptr = NULL;
-	GSERIALIZED *g = NULL;
-	assert(geom);
-
 	/*
 	** See if we need a bounding box, add one if we don't have one.
 	*/
@@ -951,12 +942,15 @@ GSERIALIZED* gserialized_from_lwgeom(LWGEOM *geom, size_t *size)
 	** Harmonize the flags to the state of the lwgeom 
 	*/
 	if ( geom->bbox )
-		FLAGS_SET_BBOX(geom->flags, 1);
+		FLAGS_SET_BBOX(geom->flags, 1);	
+}
 
-	/* Set up the uint8_t buffer into which we are going to write the serialized geometry. */
-	expected_size = gserialized_from_lwgeom_size(geom);
-	serialized = lwalloc(expected_size);
-	ptr = serialized;
+static void gserialized_from_lwgeom_write(const LWGEOM *geom, uint8_t *buffer, size_t expected_size)
+{
+	uint8_t *ptr = NULL;
+	size_t return_size = 0;
+	
+	ptr = buffer;
 
 	/* Move past size, srid and flags. */
 	ptr += 8;
@@ -969,24 +963,53 @@ GSERIALIZED* gserialized_from_lwgeom(LWGEOM *geom, size_t *size)
 	ptr += gserialized_from_lwgeom_any(geom, ptr);
 
 	/* Calculate size as returned by data processing functions. */
-	return_size = ptr - serialized;
+	return_size = ptr - buffer;
 
 	if ( expected_size != return_size ) /* Uh oh! */
 	{
 		lwerror("Return size (%d) not equal to expected size (%d)!", return_size, expected_size);
-		return NULL;
 	}
+	
+	return;
+}
+
+/* Public function */
+
+void gserialized_from_lwgeom_flatten(LWGEOM *geom, GSERIALIZED *g, size_t g_size)
+{
+	gserialized_from_lwgeom_prepare(geom);
+	gserialized_from_lwgeom_write(geom, (uint8_t*)g, g_size);
+	g->size = g_size << 2;
+	gserialized_set_srid(g, geom->srid);
+	g->flags = geom->flags;
+	return;
+}
+
+GSERIALIZED* gserialized_from_lwgeom(LWGEOM *geom, size_t *size)
+{
+	size_t expected_size = 0;
+	uint8_t *buffer = NULL;
+	GSERIALIZED *g = NULL;
+	assert(geom);
+
+	gserialized_from_lwgeom_prepare(geom);
+
+	/* Set up the uint8_t buffer into which we are going to write the serialized geometry. */
+	expected_size = gserialized_from_lwgeom_size(geom);
+	buffer = lwalloc(expected_size);
+	
+	gserialized_from_lwgeom_write(geom, buffer, expected_size);
 
 	if ( size ) /* Return the output size to the caller if necessary. */
-		*size = return_size;
+		*size = expected_size;
 
-	g = (GSERIALIZED*)serialized;
+	g = (GSERIALIZED*)buffer;
 
 	/*
 	** We are aping PgSQL code here, PostGIS code should use
 	** VARSIZE to set this for real.
 	*/
-	g->size = return_size << 2;
+	g->size = expected_size << 2;
 
 	/* Set the SRID! */
 	gserialized_set_srid(g, geom->srid);

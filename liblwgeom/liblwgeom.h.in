@@ -1922,6 +1922,7 @@ extern size_t gserialized_from_lwgeom_size(const LWGEOM *geom);
 * VARSIZE information.
 */
 extern GSERIALIZED* gserialized_from_lwgeom(LWGEOM *geom, size_t *size);
+extern void gserialized_from_lwgeom_flatten(LWGEOM *geom, GSERIALIZED *g, size_t g_size);
 
 /**
 * Allocate a new #LWGEOM from a #GSERIALIZED. The resulting #LWGEOM will have coordinates
