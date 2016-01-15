@@ -928,24 +928,9 @@ static size_t gserialized_from_gbox(const GBOX *gbox, uint8_t *buf)
 	return return_size;
 }
 
-static void gserialized_from_lwgeom_prepare(LWGEOM *geom)
-{
-	/*
-	** See if we need a bounding box, add one if we don't have one.
-	*/
-	if ( (! geom->bbox) && lwgeom_needs_bbox(geom) && (!lwgeom_is_empty(geom)) )
-	{
-		lwgeom_add_bbox(geom);
-	}
-	
-	/*
-	** Harmonize the flags to the state of the lwgeom 
-	*/
-	if ( geom->bbox )
-		FLAGS_SET_BBOX(geom->flags, 1);	
-}
+/* Public function */
 
-static void gserialized_from_lwgeom_write(const LWGEOM *geom, uint8_t *buffer, size_t expected_size)
+void gserialized_from_lwgeom_write(const LWGEOM *geom, uint8_t *buffer, size_t expected_size)
 {
 	uint8_t *ptr = NULL;
 	size_t return_size = 0;
@@ -973,16 +958,21 @@ static void gserialized_from_lwgeom_write(const LWGEOM *geom, uint8_t *buffer, s
 	return;
 }
 
-/* Public function */
-
-void gserialized_from_lwgeom_flatten(LWGEOM *geom, GSERIALIZED *g, size_t g_size)
+void gserialized_from_lwgeom_prepare(LWGEOM *geom)
 {
-	gserialized_from_lwgeom_prepare(geom);
-	gserialized_from_lwgeom_write(geom, (uint8_t*)g, g_size);
-	g->size = g_size << 2;
-	gserialized_set_srid(g, geom->srid);
-	g->flags = geom->flags;
-	return;
+	/*
+	** See if we need a bounding box, add one if we don't have one.
+	*/
+	if ( (! geom->bbox) && lwgeom_needs_bbox(geom) && (!lwgeom_is_empty(geom)) )
+	{
+		lwgeom_add_bbox(geom);
+	}
+	
+	/*
+	** Harmonize the flags to the state of the lwgeom 
+	*/
+	if ( geom->bbox )
+		FLAGS_SET_BBOX(geom->flags, 1);	
 }
 
 GSERIALIZED* gserialized_from_lwgeom(LWGEOM *geom, size_t *size)

@@ -19,6 +19,7 @@
 #include <executor/spi.h>
 #include <miscadmin.h>
 #include <utils/expandeddatum.h>
+#include <utils/memutils.h>
 
 #include "../postgis_config.h"
 #include "liblwgeom.h"
@@ -233,7 +234,6 @@ GSERIALIZED* geography_serialize(LWGEOM *lwgeom)
 /**
 * Utility method to call the serialization and then set the
 * PgSQL varsize header appropriately with the serialized size.
-*/
 GSERIALIZED* geometry_serialize(LWGEOM *lwgeom)
 {
 	size_t ret_size = 0;
@@ -244,6 +244,7 @@ GSERIALIZED* geometry_serialize(LWGEOM *lwgeom)
 	SET_VARSIZE(g, ret_size);
 	return g;
 }
+*/
 
 void
 lwpgnotice(const char *fmt, ...)
@@ -307,15 +308,22 @@ typedef union GSERIALIZED_ANY
 /* "Methods" required for an expanded object */
 static Size GSER_get_flat_size(ExpandedObjectHeader *eohptr)
 {
-	GSERIALIZED_EXPANDED *gserx = (GSERIALIZED_EXPANDED*)eohptr;
-	return gserialized_from_lwgeom_size(gserx->geom);
+	GSERIALIZED_EXPANDED *gx = (GSERIALIZED_EXPANDED*)eohptr;
+	LWGEOM *geom = gx->geom;
+	gserialized_from_lwgeom_prepare(geom);
+	return gserialized_from_lwgeom_size(geom);
 }
 
 /* "Methods" required for an expanded object */
 static void GSER_flatten_into(ExpandedObjectHeader *eohptr, void *result, Size allocated_size)
 {
-	GSERIALIZED_EXPANDED *gserx = (GSERIALIZED_EXPANDED*)eohptr;
-	gserialized_from_lwgeom_flatten(gserx->geom, (GSERIALIZED *)result, allocated_size);
+	GSERIALIZED_EXPANDED *gx = (GSERIALIZED_EXPANDED*)eohptr;
+	LWGEOM *geom = gx->geom;
+	GSERIALIZED *g = (GSERIALIZED*)result;
+	gserialized_from_lwgeom_write(geom, (uint8_t*)result, allocated_size);
+	g->flags = geom->flags;
+	gserialized_set_srid(g, geom->srid);
+	SET_VARSIZE(g, allocated_size);
 	return;
 }
 
@@ -331,14 +339,28 @@ static const ExpandedObjectMethods GSER_methods =
 
 
 /*
-static GSERIALIZED_EXPANDED* geometry_serialize_expanded(LWGEOM *lwgeom)
+*/ 
+GSERIALIZED* geometry_serialize(LWGEOM *geom)
 {
-	size_t ret_size = 0;
-	GSERIALIZED *g = NULL;
+	GSERIALIZED_EXPANDED *eah;
+	MemoryContext objcxt;
+	MemoryContext oldcxt;
 
-	g = gserialized_from_lwgeom(lwgeom, &ret_size);
-	if ( ! g ) lwpgerror("Unable to serialize lwgeom.");
-	SET_VARSIZE(g, ret_size);
-	return g;
+	objcxt = AllocSetContextCreate(CurrentMemoryContext,
+								   "expanded geometry",
+								   ALLOCSET_SMALL_MINSIZE,
+								   ALLOCSET_SMALL_INITSIZE,
+								   ALLOCSET_DEFAULT_MAXSIZE);
+
+	/* Set up expanded array header */
+	eah = (GSERIALIZED_EXPANDED *) MemoryContextAlloc(objcxt, sizeof(GSERIALIZED_EXPANDED));
+
+	/* Clone the lwgeom into the expanded context */
+	oldcxt = MemoryContextSwitchTo(objcxt);
+	eah->geom = lwgeom_clone_deep(geom);
+	MemoryContextSwitchTo(oldcxt);
+	
+	EOH_init_header(&eah->hdr, &GSER_methods, objcxt);
+	
+	return (GSERIALIZED*)(EOHPGetRWDatum(&eah->hdr));
 }
-*/
