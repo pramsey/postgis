@@ -215,7 +215,7 @@ Datum BOX3D_to_LWGEOM(PG_FUNCTION_ARGS)
 
 	if ( (box->xmin == box->xmax) && (box->ymin == box->ymax) )
 	{
-		LWPOINT *lwpt = lwpoint_construct(SRID_UNKNOWN, NULL, pa);
+		LWPOINT *lwpt = lwpoint_construct(box->srid, NULL, pa);
 
 		pt.x = box->xmin;
 		pt.y = box->ymin;
@@ -226,7 +226,7 @@ Datum BOX3D_to_LWGEOM(PG_FUNCTION_ARGS)
 	else if (box->xmin == box->xmax ||
 	         box->ymin == box->ymax)
 	{
-		LWLINE *lwline = lwline_construct(SRID_UNKNOWN, NULL, pa);
+		LWLINE *lwline = lwline_construct(box->srid, NULL, pa);
 
 		pt.x = box->xmin;
 		pt.y = box->ymin;
@@ -239,7 +239,7 @@ Datum BOX3D_to_LWGEOM(PG_FUNCTION_ARGS)
 	}
 	else
 	{
-		LWPOLY *lwpoly = lwpoly_construct(SRID_UNKNOWN, NULL, 1, &pa);
+		LWPOLY *lwpoly = lwpoly_construct(box->srid, NULL, 1, &pa);
 
 		pt.x = box->xmin;
 		pt.y = box->ymin;
@@ -261,7 +261,6 @@ Datum BOX3D_to_LWGEOM(PG_FUNCTION_ARGS)
 		
 	}
 
-	gserialized_set_srid(result, box->srid);
 	PG_RETURN_POINTER(result);
 }
 

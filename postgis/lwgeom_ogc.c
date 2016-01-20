@@ -816,26 +816,25 @@ Datum LWGEOM_from_WKB(PG_FUNCTION_ARGS)
 	uint8_t *wkb = (uint8_t*)VARDATA(bytea_wkb);
 	
 	lwgeom = lwgeom_from_wkb(wkb, VARSIZE(bytea_wkb)-VARHDRSZ, LW_PARSER_CHECK_ALL);
-	
+
+	if ( lwgeom->srid != SRID_UNKNOWN )
+	{
+		elog(WARNING, "OGC WKB expected, EWKB provided - use GeometryFromEWKB() for this");
+	}
+
+	if ( PG_NARGS() > 1 )
+	{
+		srid = PG_GETARG_INT32(1);
+		if ( srid != lwgeom->srid )
+			lwgeom->srid = srid;
+	}
+		
 	if ( lwgeom_needs_bbox(lwgeom) )
 		lwgeom_add_bbox(lwgeom);
 	
 	geom = geometry_serialize(lwgeom);
 	lwgeom_free(lwgeom);
 	PG_FREE_IF_COPY(bytea_wkb, 0);
-	
-	if ( gserialized_get_srid(geom) != SRID_UNKNOWN )
-	{
-		elog(WARNING, "OGC WKB expected, EWKB provided - use GeometryFromEWKB() for this");
-	}
-	
-	if ( PG_NARGS() > 1 )
-	{
-		srid = PG_GETARG_INT32(1);
-		if ( srid != gserialized_get_srid(geom) )
-			gserialized_set_srid(geom, srid);
-	}
-
 	PG_RETURN_POINTER(geom);
 }
 

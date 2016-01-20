@@ -310,8 +310,9 @@ static Size GSER_get_flat_size(ExpandedObjectHeader *eohptr)
 {
 	GSERIALIZED_EXPANDED *gx = (GSERIALIZED_EXPANDED*)eohptr;
 	LWGEOM *geom = gx->geom;
-	gserialized_from_lwgeom_prepare(geom);
-	return gserialized_from_lwgeom_size(geom);
+	size_t sz;
+	sz = gserialized_from_lwgeom_size(geom);
+	return sz;
 }
 
 /* "Methods" required for an expanded object */
@@ -358,6 +359,7 @@ GSERIALIZED* geometry_serialize(LWGEOM *geom)
 	/* Clone the lwgeom into the expanded context */
 	oldcxt = MemoryContextSwitchTo(objcxt);
 	eah->geom = lwgeom_clone_deep(geom);
+	gserialized_from_lwgeom_prepare(eah->geom);
 	MemoryContextSwitchTo(oldcxt);
 	
 	EOH_init_header(&eah->hdr, &GSER_methods, objcxt);

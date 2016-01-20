@@ -186,7 +186,7 @@ lwpoint_locate_along(const LWPOINT *lwpoint, double m, double offset)
 	LWMPOINT *r = lwmpoint_construct_empty(lwgeom_get_srid(lwg), lwgeom_has_z(lwg), lwgeom_has_m(lwg));
 	if ( FP_EQUALS(m, point_m) )
 	{
-		lwmpoint_add_lwpoint(r, lwpoint_clone(lwpoint));
+		lwmpoint_add_lwpoint(r, (LWPOINT*)lwgeom_clone_deep((LWGEOM*)lwpoint));
 	}
 	return r;
 }
@@ -206,7 +206,7 @@ lwmpoint_locate_along(const LWMPOINT *lwin, double m, double offset)
 		double point_m = lwpoint_get_m(lwin->geoms[i]);
 		if ( FP_EQUALS(m, point_m) )
 		{
-			lwmpoint_add_lwpoint(lwout, lwpoint_clone(lwin->geoms[i]));
+			lwmpoint_add_lwpoint(lwout, (LWPOINT*)lwgeom_clone_deep((LWGEOM*)lwin->geoms[i]));
 		}
 	}
 
@@ -392,8 +392,8 @@ lwpoint_clip_to_ordinate_range(const LWPOINT *point, char ordinate, double from,
 	ordinate_value = lwpoint_get_ordinate(&p4d, ordinate);
 	if ( from <= ordinate_value && to >= ordinate_value )
 	{
-		LWPOINT *lwp = lwpoint_clone(point);
-		lwcollection_add_lwgeom(lwgeom_out, lwpoint_as_lwgeom(lwp));
+		LWGEOM *lwp = lwgeom_clone_deep((LWGEOM*)point);
+		lwcollection_add_lwgeom(lwgeom_out, lwp);
 	}
 
 	/* Set the bbox, if necessary */
@@ -448,8 +448,8 @@ lwmpoint_clip_to_ordinate_range(const LWMPOINT *mpoint, char ordinate, double fr
 
 		if ( from <= ordinate_value && to >= ordinate_value )
 		{
-			LWPOINT *lwp = lwpoint_clone(mpoint->geoms[i]);
-			lwcollection_add_lwgeom(lwgeom_out, lwpoint_as_lwgeom(lwp));
+			LWGEOM *lwp = lwgeom_clone_deep((LWGEOM*)mpoint->geoms[i]);
+			lwcollection_add_lwgeom(lwgeom_out, lwp);
 		}
 	}
 
