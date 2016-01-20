@@ -86,7 +86,6 @@ Datum LWGEOM_in(PG_FUNCTION_ARGS)
 	char *input = PG_GETARG_CSTRING(0);
 	int32 geom_typmod = -1;
 	char *str = input;
-	LWGEOM_PARSER_RESULT lwg_parser_result;
 	LWGEOM *lwgeom;
 	GSERIALIZED *ret;
 	int srid = 0;
@@ -94,8 +93,6 @@ Datum LWGEOM_in(PG_FUNCTION_ARGS)
 	if ( (PG_NARGS()>2) && (!PG_ARGISNULL(2)) ) {
 		geom_typmod = PG_GETARG_INT32(2);
 	}
-
-	lwgeom_parser_result_init(&lwg_parser_result);
 
 	/* Empty string. */
 	if ( str[0] == '\0' ) {
@@ -133,7 +130,7 @@ Datum LWGEOM_in(PG_FUNCTION_ARGS)
 		/* TODO: 20101206: No parser checks! This is inline with current 1.5 behavior, but needs discussion */
 		lwgeom = lwgeom_from_wkb(wkb, hexsize/2, LW_PARSER_CHECK_NONE);
 		/* If we picked up an SRID at the head of the WKB set it manually */
-		if ( srid ) lwgeom_set_srid(lwgeom, srid);
+		if ( srid > 0 ) lwgeom_set_srid(lwgeom, srid);
 		/* Add a bbox if necessary */
 		if ( lwgeom_needs_bbox(lwgeom) ) lwgeom_add_bbox(lwgeom);
 		pfree(wkb);
@@ -143,15 +140,20 @@ Datum LWGEOM_in(PG_FUNCTION_ARGS)
 	/* WKT then. */
 	else
 	{
+		LWGEOM_PARSER_RESULT lwg_parser_result;
+
 		if ( lwgeom_parse_wkt(&lwg_parser_result, str, LW_PARSER_CHECK_ALL) == LW_FAILURE )
 		{
 			PG_PARSER_ERROR(lwg_parser_result);
 			PG_RETURN_NULL();
 		}
 		lwgeom = lwg_parser_result.geom;
+		/* If we picked up an SRID at the head of the WKT set it manually */
+		// if ( srid > 0 ) lwgeom_set_srid(lwgeom, srid);
 		if ( lwgeom_needs_bbox(lwgeom) )
-			lwgeom_add_bbox(lwgeom);		
-		ret = geometry_serialize(lwgeom);
+			lwgeom_add_bbox(lwgeom);
+		// ret = geometry_serialize(lwgeom);
+		ret = geometry_serialize_fully(lwgeom);
 		lwgeom_parser_result_free(&lwg_parser_result);
 	}
 

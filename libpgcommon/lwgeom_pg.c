@@ -234,7 +234,8 @@ GSERIALIZED* geography_serialize(LWGEOM *lwgeom)
 /**
 * Utility method to call the serialization and then set the
 * PgSQL varsize header appropriately with the serialized size.
-GSERIALIZED* geometry_serialize(LWGEOM *lwgeom)
+*/
+GSERIALIZED* geometry_serialize_fully(LWGEOM *lwgeom)
 {
 	size_t ret_size = 0;
 	GSERIALIZED *g = NULL;
@@ -244,7 +245,6 @@ GSERIALIZED* geometry_serialize(LWGEOM *lwgeom)
 	SET_VARSIZE(g, ret_size);
 	return g;
 }
-*/
 
 void
 lwpgnotice(const char *fmt, ...)

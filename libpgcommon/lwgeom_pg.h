@@ -101,6 +101,7 @@ GSERIALIZED* gserialized_drop_gidx(GSERIALIZED *g);
 * PgSQL varsize header appropriately with the serialized size.
 */
 GSERIALIZED *geometry_serialize(LWGEOM *lwgeom);
+GSERIALIZED *geometry_serialize_fully(LWGEOM *lwgeom);
 
 /**
 * Utility method to call the serialization and then set the
