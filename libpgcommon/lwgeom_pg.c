@@ -18,7 +18,6 @@
 #include <fmgr.h>
 #include <executor/spi.h>
 #include <miscadmin.h>
-#include <utils/expandeddatum.h>
 #include <utils/memutils.h>
 
 #include "../postgis_config.h"
@@ -290,21 +289,6 @@ lwpgerror(const char *fmt, ...)
 * when it's actually time to write a tuple.
 *****************************************************************************/
 
-typedef struct GSERIALIZED_EXPANDED
-{
-	/* Standard header for expanded objects */
-	ExpandedObjectHeader hdr;
-	/* Pointer to our memory object */
-	LWGEOM *geom;
-} GSERIALIZED_EXPANDED;
-
-/* For functions that have to read these things */
-typedef union GSERIALIZED_ANY
-{
-	GSERIALIZED	flt;
-	GSERIALIZED_EXPANDED xpn;
-} GSERIALIZED_ANY;
-
 /* "Methods" required for an expanded object */
 static Size GSER_get_flat_size(ExpandedObjectHeader *eohptr)
 {
@@ -346,6 +330,7 @@ GSERIALIZED* geometry_serialize(LWGEOM *geom)
 	GSERIALIZED_EXPANDED *eah;
 	MemoryContext objcxt;
 	MemoryContext oldcxt;
+	Datum rv;
 
 	objcxt = AllocSetContextCreate(CurrentMemoryContext,
 								   "expanded geometry",
@@ -363,6 +348,6 @@ GSERIALIZED* geometry_serialize(LWGEOM *geom)
 	MemoryContextSwitchTo(oldcxt);
 	
 	EOH_init_header(&eah->hdr, &GSER_methods, objcxt);
-	
-	return (GSERIALIZED*)(EOHPGetRWDatum(&eah->hdr));
+	rv = EOHPGetRWDatum(&eah->hdr);
+	return (GSERIALIZED*)DatumGetPointer(rv);
 }

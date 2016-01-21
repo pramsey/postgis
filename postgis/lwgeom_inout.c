@@ -152,8 +152,8 @@ Datum LWGEOM_in(PG_FUNCTION_ARGS)
 		// if ( srid > 0 ) lwgeom_set_srid(lwgeom, srid);
 		if ( lwgeom_needs_bbox(lwgeom) )
 			lwgeom_add_bbox(lwgeom);
-		// ret = geometry_serialize(lwgeom);
-		ret = geometry_serialize_fully(lwgeom);
+		ret = geometry_serialize(lwgeom);
+		// ret = geometry_serialize_fully(lwgeom);
 		lwgeom_parser_result_free(&lwg_parser_result);
 	}
 
@@ -776,6 +776,7 @@ Datum LWGEOM_recv(PG_FUNCTION_ARGS)
 	/* Set cursor to the end of buffer (so the backend is happy) */
 	buf->cursor = buf->len;
 
+	// geom = geometry_serialize_fully(lwgeom);
 	geom = geometry_serialize(lwgeom);
 	lwgeom_free(lwgeom);
 

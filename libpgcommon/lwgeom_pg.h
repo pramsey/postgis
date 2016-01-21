@@ -15,9 +15,10 @@
 #ifndef _LWGEOM_PG_H
 #define _LWGEOM_PG_H 1
 
-#include "postgres.h"
-#include "utils/geo_decls.h"
-#include "fmgr.h"
+#include <postgres.h>
+#include <fmgr.h>
+#include <utils/expandeddatum.h>
+#include <utils/geo_decls.h>
 
 #include "liblwgeom.h"
 #include "pgsql_compat.h"
@@ -85,6 +86,22 @@ extern void pg_unparser_errhint(LWGEOM_UNPARSER_RESULT *lwg_unparser_result);
 #define LWGEOM_INIT() { \
   lwgeom_cancel_interrupt(); \
 }
+
+
+typedef struct GSERIALIZED_EXPANDED
+{
+	/* Standard header for expanded objects */
+	ExpandedObjectHeader hdr;
+	/* Pointer to our memory object */
+	LWGEOM *geom;
+} GSERIALIZED_EXPANDED;
+
+/* For functions that have to read these things */
+typedef union GSERIALIZED_ANY
+{
+	GSERIALIZED	flt;
+	GSERIALIZED_EXPANDED xpn;
+} GSERIALIZED_ANY;
 
 
 /*

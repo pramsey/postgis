@@ -118,14 +118,36 @@ Datum postgis_typmod_out(PG_FUNCTION_ARGS)
 */
 GSERIALIZED* postgis_valid_typmod(GSERIALIZED *gser, int32_t typmod)
 {
-	int32 geom_srid = gserialized_get_srid(gser);
-	int32 geom_type = gserialized_get_type(gser);
-	int32 geom_z = gserialized_has_z(gser);
-	int32 geom_m = gserialized_has_m(gser);
 	int32 typmod_srid = TYPMOD_GET_SRID(typmod);
 	int32 typmod_type = TYPMOD_GET_TYPE(typmod);
 	int32 typmod_z = TYPMOD_GET_Z(typmod);
 	int32 typmod_m = TYPMOD_GET_M(typmod);
+
+	int32 geom_srid, geom_type;
+	int32 geom_z, geom_m;
+	int32 geom_is_empty, geom_is_geodetic;
+
+	if (VARATT_IS_EXTERNAL_EXPANDED(gser)) 
+	{
+		GSERIALIZED_EXPANDED *gx = (GSERIALIZED_EXPANDED *)DatumGetEOHP(PointerGetDatum(gser));
+		LWGEOM *geom = gx->geom;
+		geom_srid = lwgeom_get_srid(geom);
+		geom_type = lwgeom_get_type(geom);
+		geom_z = lwgeom_has_z(geom);
+		geom_m = lwgeom_has_m(geom);
+		geom_is_empty = lwgeom_is_empty(geom);
+		geom_is_geodetic = FLAGS_GET_GEODETIC(geom->flags);
+	}
+	else
+	{
+		geom_srid = gserialized_get_srid(gser);
+		geom_type = gserialized_get_type(gser);
+		geom_z = gserialized_has_z(gser);
+		geom_m = gserialized_has_m(gser);
+		geom_is_empty = gserialized_is_empty(gser);
+		geom_is_geodetic = gserialized_is_geodetic(gser);
+	}
+
 
 	POSTGIS_DEBUG(2, "Entered function");
 
@@ -144,13 +166,12 @@ GSERIALIZED* postgis_valid_typmod(GSERIALIZED *gser, int32_t typmod)
 	* In such a case, it makes sense to turn the MULTIPOINT EMPTY back into a 
 	* point EMPTY, rather than throwing an error.
 	*/
-	if ( typmod_type == POINTTYPE && geom_type == MULTIPOINTTYPE && 
-	     gserialized_is_empty(gser) )
+	if ( typmod_type == POINTTYPE && geom_type == MULTIPOINTTYPE && geom_is_empty )
 	{
 		LWPOINT *empty_point = lwpoint_construct_empty(geom_srid, geom_z, geom_m);
 		geom_type = POINTTYPE;
-		pfree(gser);
-		if ( gserialized_is_geodetic(gser) )
+		// pfree(gser);
+		if ( geom_is_geodetic )
 			gser = geography_serialize(lwpoint_as_lwgeom(empty_point));
 		else
 			gser = geometry_serialize(lwpoint_as_lwgeom(empty_point));
