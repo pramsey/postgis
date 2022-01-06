@@ -105,6 +105,7 @@ Datum ST_Equals(PG_FUNCTION_ARGS);
 Datum ST_BuildArea(PG_FUNCTION_ARGS);
 Datum ST_DelaunayTriangles(PG_FUNCTION_ARGS);
 Datum ST_MaximumInscribedCircle(PG_FUNCTION_ARGS);
+Datum ST_ConcaveHull(PG_FUNCTION_ARGS);
 
 Datum pgis_union_geometry_array(PG_FUNCTION_ARGS);
 Datum pgis_geometry_union_finalfn(PG_FUNCTION_ARGS);
@@ -888,6 +889,25 @@ Datum convexhull(PG_FUNCTION_ARGS)
 	PG_FREE_IF_COPY(geom1, 0);
 	PG_RETURN_POINTER(result);
 }
+
+
+PG_FUNCTION_INFO_V1(ST_ConcaveHull);
+Datum ST_ConcaveHull(PG_FUNCTION_ARGS)
+{
+	GSERIALIZED* geom = PG_GETARG_GSERIALIZED_P(0);
+	double ratio = PG_GETARG_FLOAT8(1);
+	bool allow_holes = PG_GETARG_BOOL(2);
+
+	LWGEOM* lwgeom = lwgeom_from_gserialized(geom);
+	LWGEOM* lwresult = lwgeom_concavehull(lwgeom, ratio, allow_holes);
+	GSERIALIZED* result = geometry_serialize(lwresult);
+
+	lwgeom_free(lwgeom);
+	lwgeom_free(lwresult);
+	PG_FREE_IF_COPY(geom, 0);
+	PG_RETURN_POINTER(result);
+}
+
 
 PG_FUNCTION_INFO_V1(topologypreservesimplify);
 Datum topologypreservesimplify(PG_FUNCTION_ARGS)
