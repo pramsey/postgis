@@ -894,6 +894,15 @@ Datum convexhull(PG_FUNCTION_ARGS)
 PG_FUNCTION_INFO_V1(ST_ConcaveHull);
 Datum ST_ConcaveHull(PG_FUNCTION_ARGS)
 {
+#if POSTGIS_GEOS_VERSION < 31100
+
+	lwpgerror("The GEOS version this PostGIS binary "
+				"was compiled against (%d) doesn't support "
+				"'GEOSConcaveHull' function (3.11.0+ required)",
+				POSTGIS_GEOS_VERSION);
+	PG_RETURN_NULL();
+
+#else /* POSTGIS_GEOS_VERSION >= 31100 */
 	GSERIALIZED* geom = PG_GETARG_GSERIALIZED_P(0);
 	double ratio = PG_GETARG_FLOAT8(1);
 	bool allow_holes = PG_GETARG_BOOL(2);
@@ -906,6 +915,7 @@ Datum ST_ConcaveHull(PG_FUNCTION_ARGS)
 	lwgeom_free(lwresult);
 	PG_FREE_IF_COPY(geom, 0);
 	PG_RETURN_POINTER(result);
+#endif
 }
 
 

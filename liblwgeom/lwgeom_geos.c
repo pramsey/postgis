@@ -2092,6 +2092,7 @@ lwgeom_voronoi_diagram(const LWGEOM* g, const GBOX* env, double tolerance, int o
 }
 
 
+#if POSTGIS_GEOS_VERSION >= 31100
 LWGEOM*
 lwgeom_concavehull(const LWGEOM* geom, double ratio, uint32_t allow_holes)
 {
@@ -2117,3 +2118,4 @@ lwgeom_concavehull(const LWGEOM* geom, double ratio, uint32_t allow_holes)
 	GEOS_FREE(g1, g3);
 	return result;
 }
+#endif
