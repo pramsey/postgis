@@ -2104,7 +2104,7 @@ lwgeom_concavehull(const LWGEOM* geom, double ratio, uint32_t allow_holes)
 
 	if (!(g1 = LWGEOM2GEOS(geom, AUTOFIX))) GEOS_FAIL();
 
-	g3 = GEOSConcaveHull(g1, ratio, GEOS_DIM_LINE, allow_holes);
+	g3 = GEOSConcaveHull(g1, ratio, allow_holes);
 
 	if (!g3)
 		GEOS_FREE_AND_FAIL(g1);
