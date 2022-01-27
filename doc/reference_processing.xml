@@ -629,15 +629,40 @@ POINT(0.5 1)
       <refsection>
         <title>Description</title>
 
-        <para>A concave hull of a geometry is a possibly concave geometry that encloses the vertices of the input geometry. The result is a single polygon, line or point. It will not contain holes unless the optional allow_holes argument is specified as true.</para>
+        <para>A concave hull of a geometry is a possibly concave
+        geometry that encloses the vertices of the input geometry.
+        In the general case the concave hull is a Polygon.
+        The polygon will not contain holes unless the optional <varname>allow_holes</varname>
+        argument is specified as true.
+        The concave hull of two or more collinear points is a two-point LineString.
+        The concave hull of one or more identical points is a Point.
+        </para>
 
-        <para>One can think of a concave hull as a geometry obtained by "shrink-wrapping" a set of points. This is different to the convex hull, which is more like wrapping a rubber band around the points. The concave hull generally has a smaller area and represents a more natural boundary for the input points.</para>
+        <para>One can think of a concave hull as "shrink-wrapping" a set of points.
+        This is different to the <link linkend="ST_ConvexHull">convex hull</link>,
+        which is more like wrapping a rubber band around the points.
+        The concave hull generally has a smaller area
+        and represents a more natural boundary for the input points.
+        Like the convex hull, the vertices of a concave hull are a subset of the input points,
+        and all other input points are contained within it.</para>
 
-        <para>The <varname>target_percent</varname> controls the concaveness of the computed hull. A value of 1.0 produces the convex hull. A value of 0 produces a hull with maximum concaveness (but still a single polygon). Values between 1.0 and 0 produce hulls of increasing concaveness. Choosing a suitable value depends on the nature of the input data, but often values between 0.4 and 0.2 produce reasonable results.</para>
+        <para>The <varname>target_percent</varname> controls the concaveness of the computed hull.
+        A value of 1 produces the convex hull.
+        A value of 0 produces a hull of maximum concaveness (but still a single polygon).
+        Values between 1 and 0 produce hulls of increasing concaveness.
+        Choosing a suitable value depends on the nature of the input data,
+        but often values between 0.3 and 0.1 produce reasonable results.
+        </para>
 
-        <para>Technically, the target percent determines a length as a fraction of the difference between the longest and shortest edges in the Delaunay Triangulation of the input points. Edges longer than this length are "eroded" from the triangulation. The triangles remaining form the concave hull.</para>
+        <para>Technically, the target percent determines a length as a fraction of the difference between
+        the longest and shortest edges in the Delaunay Triangulation of the input points.
+        Edges longer than this length are "eroded" from the triangulation.
+        The triangles remaining form the concave hull.
+        </para>
 
-        <para>This is not an aggregate function. To compute the concave hull of a set of geometries use <code>ST_Collect</code> (e.g. <code>ST_ConcaveHull( ST_Collect( geom ), 0.80)</code>.</para>
+       <para>This is not an aggregate function.
+        To compute the concave hull of a set of geometries use <xref linkend="ST_Collect" />
+        (e.g. <code>ST_ConcaveHull( ST_Collect( geom ), 0.80)</code>.</para>
 
         <para>Availability: 2.0.0</para>
         <para>Enhanced: 3.2.0</para>
@@ -645,150 +670,58 @@ POINT(0.5 1)
 
       <refsection>
         <title>Examples</title>
-<programlisting>
---Get estimate of infected area based on point observations
-SELECT d.disease_type,
-    ST_ConcaveHull(ST_Collect(d.pnt_geom), 0.99) As geom
-    FROM disease_obs As d
-    GROUP BY d.disease_type;
-</programlisting>
-            <informaltable>
-                  <tgroup cols="2">
-                    <tbody>
-                      <row>
-                        <entry><para><informalfigure>
-                            <mediaobject>
-                              <imageobject>
-                                <imagedata fileref="images/st_concavehull03.png" />
-                              </imageobject>
-                              <caption><para>ST_ConcaveHull of 2 polygons encased in target 100% shrink concave hull</para></caption>
-                            </mediaobject>
-                          </informalfigure>
-                <programlisting>
--- geometries overlaid with concavehull
--- at target 100% shrink (this is the same as convex hull - since no shrink)
-SELECT
-    ST_ConcaveHull(
-        ST_Union(ST_GeomFromText('POLYGON((175 150, 20 40,
-            50 60, 125 100, 175 150))'),
-        ST_Buffer(ST_GeomFromText('POINT(110 170)'), 20)
-        ), 1)
-     As convexhull;
-                </programlisting>
-                          </para></entry>
-                        <entry><para><informalfigure>
-                            <mediaobject>
-                              <imageobject>
-                                <imagedata fileref="images/st_concavehull02.png" />
-                              </imageobject>
-                              <caption><para>-- geometries overlaid with concavehull
-                                at target 90% of convex hull area</para></caption>
-                            </mediaobject>
-                          </informalfigure>
-                <programlisting>
--- geometries overlaid with concavehull at target 90% shrink
-SELECT
-    ST_ConcaveHull(
-        ST_Union(ST_GeomFromText('POLYGON((175 150, 20 40,
-            50 60, 125 100, 175 150))'),
-        ST_Buffer(ST_GeomFromText('POINT(110 170)'), 20)
-        ), 0.9)
-     As target_90;
-                </programlisting>
-                        </para></entry>
-                      </row>
-                      <row>
-                        <entry><para><informalfigure>
-                            <mediaobject>
-                              <imageobject>
-                                <imagedata fileref="images/st_concavehull04.png" />
-                              </imageobject>
-                              <caption><para>L Shape points overlaid with convex hull</para></caption>
-                            </mediaobject>
-                          </informalfigure>
-                <programlisting>
--- this produces a table of 42 points that form an L shape
-SELECT (ST_DumpPoints(ST_GeomFromText(
-'MULTIPOINT(14 14,34 14,54 14,74 14,94 14,114 14,134 14,
-150 14,154 14,154 6,134 6,114 6,94 6,74 6,54 6,34 6,
-14 6,10 6,8 6,7 7,6 8,6 10,6 30,6 50,6 70,6 90,6 110,6 130,
-6 150,6 170,6 190,6 194,14 194,14 174,14 154,14 134,14 114,
-14 94,14 74,14 54,14 34,14 14)'))).geom
-    INTO TABLE l_shape;
 
-SELECT ST_ConvexHull(ST_Collect(geom))
-FROM l_shape;
-                </programlisting>
-                          </para></entry>
-                        <entry><para><informalfigure>
-                            <mediaobject>
-                              <imageobject>
-                                <imagedata fileref="images/st_concavehull05.png" />
-                              </imageobject>
-                              <caption><para>ST_ConcaveHull of L points at target 99% of convex hull</para></caption>
-                            </mediaobject>
-                          </informalfigure>
-                <programlisting>
-SELECT ST_ConcaveHull(ST_Collect(geom), 0.99)
-    FROM l_shape;
-                </programlisting>
-                          </para></entry>
-        </row>
-        <row>
-            <entry><para><informalfigure>
-                <mediaobject>
-                  <imageobject>
-                    <imagedata fileref="images/st_concavehull06.png" />
-                  </imageobject>
-                  <caption><para>Concave Hull of L points at target 80% convex hull area</para></caption>
-                </mediaobject>
-              </informalfigure>
+<para>
+    <informalfigure>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="images/st_concavehull01.png" />
+        </imageobject>
+        <caption><para>Concave Hull of a MultiPoint</para></caption>
+      </mediaobject>
+    </informalfigure>
     <programlisting>
-    -- Concave Hull L shape points
-    -- at target 80% of convexhull
-    SELECT ST_ConcaveHull(ST_Collect(geom), 0.80)
-    FROM l_shape;
+SELECT ST_AsText( ST_ConcaveHull(
+        'MULTIPOINT ((0 81), (65 86), (70 71), (80 59), (92 49), (107 44), (122 41), (137 40), (152 41), (167 42), (182 47), (195 55), (203 68), (201 83), (188 92), (173 97), (158 100), (143 103), (128 106), (113 109), (98 112), (83 115), (68 120), (53 125), (40 133), (28 143), (18 155), (13 170), (12 185), (16 200), (26 213), (38 223), (51 231), (66 236), (81 240), (96 243), (111 245), (126 245), (141 245), (156 245), (171 244), (186 241), (201 238), (216 233), (229 225), (242 216), (252 204), (259 190), (262 175), (194 171), (189 186), (178 197), (164 203), (149 205), (134 206), (119 205), (104 203), (89 198), (77 188), (80 173), (93 165), (108 160), (123 157), (138 154), (153 151), (168 149), (183 146), (198 142), (213 138), (227 132), (241 126), (253 116), (263 104), (269 90), (271 75), (270 60), (264 46), (254 34), (243 23), (229 16), (215 10), (200 6), (185 3), (170 1), (155 0), (139 0), (123 0), (108 1), (93 3), (78 5), (63 10), (49 16), (35 23), (23 33), (13 45), (6 59), (16 82), (32 83), (48 84), (245 174), (228 173), (211 172), (131 128), (63 148), (222 207), (127 230), (154 131), (240 82), (72 220), (210 32), (90 22), (206 208), (57 202), (195 117), (55 166), (246 55), (201 101), (224 73), (211 192), (42 176), (152 228), (172 113), (24 61), (76 33), (92 216), (46 69), (118 138), (169 23), (213 118), (221 56), (44 192), (118 22), (224 40), (56 57), (192 32), (179 220), (34 44), (145 18), (239 194), (40 155), (92 136), (231 106), (40 207), (108 228), (256 81), (28 185), (54 33), (74 205), (172 132), (221 93), (249 96), (69 47), (78 146), (155 115), (202 223))',
+         0.1 ) );
+---st_astext--
+POLYGON ((12 185, 16 200, 26 213, 38 223, 51 231, 66 236, 81 240, 96 243, 111 245, 126 245, 141 245, 156 245, 171 244, 186 241, 201 238, 216 233, 229 225, 242 216, 252 204, 259 190, 262 175, 245 174, 228 173, 211 172, 194 171, 189 186, 178 197, 164 203, 149 205, 134 206, 119 205, 104 203, 89 198, 77 188, 80 173, 93 165, 108 160, 123 157, 138 154, 153 151, 168 149, 183 146, 198 142, 213 138, 227 132, 241 126, 253 116, 263 104, 269 90, 271 75, 270 60, 264 46, 254 34, 243 23, 229 16, 215 10, 200 6, 185 3, 170 1, 155 0, 139 0, 123 0, 108 1, 93 3, 78 5, 63 10, 49 16, 35 23, 23 33, 13 45, 6 59, 0 81, 16 82, 32 83, 48 84, 65 86, 70 71, 80 59, 92 49, 107 44, 122 41, 137 40, 152 41, 167 42, 182 47, 195 55, 203 68, 201 83, 188 92, 173 97, 158 100, 143 103, 128 106, 113 109, 98 112, 83 115, 68 120, 53 125, 40 133, 28 143, 18 155, 13 170, 12 185))
     </programlisting>
-            </para>
-            </entry>
-            <entry><para>
-                <informalfigure>
-                <mediaobject>
-                  <imageobject>
-                    <imagedata fileref="images/st_concavehull07.png" />
-                  </imageobject>
-                  <caption><para>multilinestring overlaid with Convex hull</para></caption>
-                </mediaobject>
-              </informalfigure>
-                <informalfigure>
-                <mediaobject>
-                  <imageobject>
-                    <imagedata fileref="images/st_concavehull08.png" />
-                  </imageobject>
-                  <caption><para>multilinestring with overlaid with Concave hull
-                  of linestrings at 99% target -- first hop</para></caption>
-                </mediaobject>
-              </informalfigure>
+</para>
+
+<para>
+    <informalfigure>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="images/st_concavehull02.png" />
+        </imageobject>
+        <caption><para>Concave Hull of a MultiPoint, allowing holes</para></caption>
+      </mediaobject>
+    </informalfigure>
     <programlisting>
-SELECT ST_ConcaveHull(ST_GeomFromText('MULTILINESTRING((106 164,30 112,74 70,82 112,130 94,
-    130 62,122 40,156 32,162 76,172 88),
-(132 178,134 148,128 136,96 128,132 108,150 130,
-170 142,174 110,156 96,158 90,158 88),
-(22 64,66 28,94 38,94 68,114 76,112 30,
-132 10,168 18,178 34,186 52,184 74,190 100,
-190 122,182 148,178 170,176 184,156 164,146 178,
-132 186,92 182,56 158,36 150,62 150,76 128,88 118))'),0.99)
+SELECT ST_AsText( ST_ConcaveHull(
+        'MULTIPOINT ((49 20), (41 20), (34 20), (26 20), (18 20), (15 13), (13 7), (10 0), (6 0), (1 0), (4 7), (7 15.9), (9 22), (12 29), (15 36), (18 44), (20 51), (23 58), (26 65), (29 72), (35 72), (40 72), (43 65), (46 58), (49 50), (52 42), (54 36), (57 29), (60 22), (63 14), (65 7), (68 0), (63 0), (57 0), (54 7), (52 13), (49 20), (34 59), (31 53), (29 47), (26 40), (23 33), (21 28), (27 28), (34 28), (40 28), (46 28), (44 34), (41 40), (39 46), (36 53), (34 59), (5 3), (9 5), (7 10), (11 11), (10 17), (14 19), (13 24), (18 24), (17 29), (22 23), (28 26), (30 22), (35 25), (38 23), (41 24), (45 26), (45 23), (53 19), (58 2), (64 3), (57 6), (61 7), (61 11), (55 11), (59 15), (54 16), (58 19), (55 24), (50 22), (50 25), (54 28), (49 30), (53 32), (51 38), (48 35), (46 38), (44 43), (49 42), (47 48), (42 46), (40 51), (44 51), (43 56), (38 57), (43 60), (39 62), (39 68), (36 65), (33 62), (31 68), (35 69), (28 63), (32 65), (29 55), (27 59), (25 54), (22 47), (27 50), (24 50), (25 44), (20 42), (18 37), (22 36), (23 40), (20 33), (17 32))',
+         0.15, true ) );
+---st_astext--
+POLYGON ((9 22, 12 29, 15 36, 18 44, 20 51, 23 58, 26 65, 29 72, 35 72, 40 72, 43 65, 46 58, 49 50, 52 42, 54 36, 57 29, 60 22, 63 14, 65 7, 68 0, 63 0, 57 0, 54 7, 52 13, 49 20, 41 20, 34 20, 26 20, 18 20, 15 13, 13 7, 10 0, 6 0, 1 0, 4 7, 7 10, 7 15.9, 9 22), (26 40, 23 33, 27 28, 34 28, 40 28, 44 34, 41 40, 39 46, 36 53, 31 53, 29 47, 26 40))
     </programlisting>
-            </para>
-            </entry>
-        </row>
-        </tbody>
-    </tgroup>
-</informaltable>
+</para>
+
+<para>Using with ST_Collect to compute the concave hull of a geometry set.</para>
+
+<programlisting>
+-- Compute estimate of infected area based on point observations
+SELECT disease_type,
+    ST_ConcaveHull( ST_Collect(obs_pnt), 0.3 ) AS geom
+  FROM disease_obs
+  GROUP BY disease_type;
+</programlisting>
+
       </refsection>
+
       <refsection>
         <title>See Also</title>
-        <para><xref linkend="ST_Collect" />, <xref linkend="ST_ConvexHull" />, <xref linkend="ST_SimplifyPreserveTopology" />, <xref linkend="ST_SnapToGrid" /></para>
+        <para><xref linkend="ST_ConvexHull" />, <xref linkend="ST_Collect" /></para>
       </refsection>
     </refentry>
 
@@ -814,7 +747,8 @@ SELECT ST_ConcaveHull(ST_GeomFromText('MULTILINESTRING((106 164,30 112,74 70,82 
         geometry that encloses all geometries in the input.</para>
 
         <para>One can think of the convex hull as the geometry obtained by wrapping an rubber
-            band around a set of geometries.  This is different from a concave hull
+            band around a set of geometries.  This is different from a
+            <link linkend="ST_ConcaveHull">concave hull</link>
             which is analogous to "shrink-wrapping" the geometries.
             A convex hull is often used to
             determine an affected area based on a set of point observations.</para>
