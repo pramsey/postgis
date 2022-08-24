@@ -829,6 +829,45 @@ AC_SUBST([HAVE_SFCGAL])
 
 
 dnl ===========================================================================
+dnl S2 library support
+dnl ===========================================================================
+
+AC_ARG_WITH([s2],
+	[AS_HELP_STRING([--with-s2=PATH], [Build S2 extension.])],
+	[S2_PATH="$withval"],
+	[with_s2=auto])
+
+if test "x$with_s2" != "xno"; then
+  if test "x$with_s2" = "xyes" -o "x$with_s2" = "xauto"; then
+	  AC_PATH_PROG([S2_PATH], [/usr/local], [])
+  fi
+	if test -x "$S2_PATH"; then
+
+		S2_MAJOR_VERSION=`echo $SFCGAL_VERSION | cut -d. -f1 | sed 's/[[^0-9]]//g'`
+		S2_MINOR_VERSION=`echo $SFCGAL_VERSION | cut -d. -f2 | sed 's/[[^0-9]]//g'`
+		S2_PATCH_VERSION=`echo $SFCGAL_VERSION | cut -d. -f3 | sed 's/[[^0-9]]//g'`
+		S2_NUMERIC_PATCH_VERSION=`printf "%02d" $SFCGAL_PATCH_VERSION`
+		S2_NUMERIC_MINOR_VERSION=`printf "%02d" $SFCGAL_MINOR_VERSION`
+		POSTGIS_S2_VERSION="$S2_MAJOR_VERSION$S2_NUMERIC_MINOR_VERSION$S2_NUMERIC_PATCH_VERSION"
+		AC_DEFINE_UNQUOTED([POSTGIS_S2_VERSION], [$POSTGIS_S2_VERSION], [S2 library version at build time])
+		AC_SUBST([POSTGIS_S2_VERSION])
+
+		if test ! "$POSTGIS_S2_VERSION" -ge 10301; then
+			AC_MSG_ERROR([PostGIS requires S2 >= 1.3.1 (found $POSTGIS_S2_VERSION)])
+		fi
+	else
+		if test "x$with_sfcgal" != "xauto"; then
+			AC_MSG_ERROR([S2 cannot be found. Please install S2])
+		fi
+	fi
+fi
+
+AC_SUBST([POSTGIS_S2_VERSION])
+AC_SUBST([S2_CPPFLAGS])
+AC_SUBST([S2_LDFLAGS])
+
+
+dnl ===========================================================================
 dnl Detect gettext
 dnl ===========================================================================
 
