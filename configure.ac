@@ -784,9 +784,9 @@ AC_ARG_WITH([sfcgal],
 
 
 if test "x$with_sfcgal" != "xno"; then
-  if test "x$with_sfcgal" = "xyes" -o "x$with_sfcgal" = "xauto"; then
-	  AC_PATH_PROG([SFCGAL_CONFIG], [sfcgal-config], [])
-  fi
+	if test "x$with_sfcgal" = "xyes" -o "x$with_sfcgal" = "xauto"; then
+		AC_PATH_PROG([SFCGAL_CONFIG], [sfcgal-config], [])
+	fi
 	if test -x "$SFCGAL_CONFIG"; then
 		SFCGAL_VERSION=`$SFCGAL_CONFIG --version` || AC_MSG_ERROR([cannot determine sfcgal version (tried with $SFCGAL_CONFIG --version)])
 		SFCGAL_LDFLAGS=`$SFCGAL_CONFIG --libs`
@@ -805,10 +805,10 @@ if test "x$with_sfcgal" != "xno"; then
 		if test "x$SFCGAL_STATIC" = "xON"; then
 			AC_MSG_WARN([The SFCGAL version found is not installed as a dynamic library.])
 		else
-      SFCGAL="sfcgal"
+			SFCGAL="sfcgal"
 			HAVE_SFCGAL="yes"
-      AC_DEFINE([HAVE_SFCGAL], [1], [Define to 1 if sfcgal is being built])
-	    SFCGAL_MAKEFILE_LIST="sfcgal/Makefile sfcgal/regress/Makefile sfcgal/regress/tests.mk extensions/postgis_sfcgal/Makefile"
+			AC_DEFINE([HAVE_SFCGAL], [1], [Define to 1 if sfcgal is being built])
+			SFCGAL_MAKEFILE_LIST="sfcgal/Makefile sfcgal/regress/Makefile sfcgal/regress/tests.mk extensions/postgis_sfcgal/Makefile"
 		fi
 		if test ! "$POSTGIS_SFCGAL_VERSION" -ge 10301; then
 			AC_MSG_ERROR([PostGIS requires SFCGAL >= 1.3.1 (found $SFCGAL_VERSION)])
@@ -832,39 +832,39 @@ dnl ===========================================================================
 dnl S2 library support
 dnl ===========================================================================
 
+HAVE_S2="no"
 AC_ARG_WITH([s2],
-	[AS_HELP_STRING([--with-s2=PATH], [Build S2 extension.])],
-	[S2_PATH="$withval"],
-	[with_s2=auto])
+	[AS_HELP_STRING([--with-s2], [Build S2 extension. Requires S2_INCLUDEDIR and S2_LIBDIR to be set.])],
+	[with_s2="yes"],
+	[with_s2="no"] )
 
 if test "x$with_s2" != "xno"; then
-  if test "x$with_s2" = "xyes" -o "x$with_s2" = "xauto"; then
-	  AC_PATH_PROG([S2_PATH], [/usr/local], [])
-  fi
-	if test -x "$S2_PATH"; then
-
-		S2_MAJOR_VERSION=`echo $SFCGAL_VERSION | cut -d. -f1 | sed 's/[[^0-9]]//g'`
-		S2_MINOR_VERSION=`echo $SFCGAL_VERSION | cut -d. -f2 | sed 's/[[^0-9]]//g'`
-		S2_PATCH_VERSION=`echo $SFCGAL_VERSION | cut -d. -f3 | sed 's/[[^0-9]]//g'`
-		S2_NUMERIC_PATCH_VERSION=`printf "%02d" $SFCGAL_PATCH_VERSION`
-		S2_NUMERIC_MINOR_VERSION=`printf "%02d" $SFCGAL_MINOR_VERSION`
-		POSTGIS_S2_VERSION="$S2_MAJOR_VERSION$S2_NUMERIC_MINOR_VERSION$S2_NUMERIC_PATCH_VERSION"
-		AC_DEFINE_UNQUOTED([POSTGIS_S2_VERSION], [$POSTGIS_S2_VERSION], [S2 library version at build time])
-		AC_SUBST([POSTGIS_S2_VERSION])
-
-		if test ! "$POSTGIS_S2_VERSION" -ge 10301; then
-			AC_MSG_ERROR([PostGIS requires S2 >= 1.3.1 (found $POSTGIS_S2_VERSION)])
-		fi
+	if (test -n "$S2_INCLUDEDIR" && test -n "$S2_LIBDIR"); then
+	  AC_MSG_NOTICE([Got S2_INCLUDEDIR=$S2_INCLUDEDIR and S2_LIBDIR=$S2_LIBDIR])
+	  HAVE_S2="yes"
 	else
-		if test "x$with_sfcgal" != "xauto"; then
-			AC_MSG_ERROR([S2 cannot be found. Please install S2])
-		fi
+		AC_MSG_ERROR([S2_INCLUDEDIR and S2_LIBDIR must be set when using --with-s2])
 	fi
 fi
 
-AC_SUBST([POSTGIS_S2_VERSION])
-AC_SUBST([S2_CPPFLAGS])
-AC_SUBST([S2_LDFLAGS])
+
+dnl CPPFLAGS_SAVE="$CPPFLAGS"
+dnl CPPFLAGS="$S2_INCLUDEDIR"
+dnl AC_CHECK_HEADER([geos_c.h], [], [AC_MSG_ERROR([could not find geos_c.h - you may need to specify the directory of a geos-config file using --with-geosconfig])])
+dnl CPPFLAGS="$CPPFLAGS_SAVE"
+
+dnl Ensure we can link against libgeos_c
+dnl LIBS_SAVE="$LIBS"
+dnl LIBS="$GEOS_LDFLAGS"
+dnl AC_CHECK_LIB([geos_c], [initGEOS],
+dnl 	[],
+dnl [AC_MSG_ERROR([could not find libgeos_c - you may need to specify the directory of a geos-config file using --with-geosconfig])],
+dnl [])
+dnl LIBS="$LIBS_SAVE"
+
+
+dnl AC_SUBST([S2_CPPFLAGS])
+dnl AC_SUBST([S2_LDFLAGS])
 
 
 dnl ===========================================================================
@@ -1847,6 +1847,10 @@ if test "x$SFCGAL" = "xsfcgal"; then
     AC_MSG_RESULT([  SFCGAL config:        ${SFCGAL_CONFIG}])
     AC_MSG_RESULT([  SFCGAL version:       ${SFCGAL_VERSION}])
 fi
+if test "x$HAVE_S2" = "xyes"; then
+    AC_MSG_RESULT([  S2 libs:              ${S2_LIBDIR}])
+    AC_MSG_RESULT([  S2 includes:          ${S2_INCLUDEDIR}])
+fi
 if test "x$LIBLWGEOM_ONLY" = "xno"; then
   AC_MSG_RESULT([  PostgreSQL config:    ${PG_CONFIG}])
   AC_MSG_RESULT([  PostgreSQL version:   ${PGSQL_FULL_VERSION}])
@@ -1884,6 +1888,13 @@ if test "x$SFCGAL" = "xsfcgal"; then
 else
     AC_MSG_RESULT([  SFCGAL support:                     disabled])
 fi
+if test "x$HAVE_S2" = "xyes"; then
+    AC_MSG_RESULT([  S2 support:                         enabled])
+else
+    AC_MSG_RESULT([  S2 support:                         disabled])
+fi
+
+
 
 if test "x$ADDRESS_STANDARDIZER" = "xaddress_standardizer"; then
     AC_MSG_RESULT([  Address Standardizer support:       enabled])

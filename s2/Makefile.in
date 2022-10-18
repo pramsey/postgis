@@ -54,10 +54,10 @@ OBJS = lwgeom_s2.o
 PG_CPPFLAGS += -I@top_builddir@/liblwgeom -I@top_srcdir@/liblwgeom -I@top_srcdir@/libpgcommon @CFLAGS@ @CPPFLAGS@ @PICFLAGS@
 SHLIB_LINK_F = @top_builddir@/libpgcommon/libpgcommon.a @top_builddir@/liblwgeom/.libs/liblwgeom.a @SHLIB_LINK@
 
-# Add SFCGAL Flags if defined
-ifeq (@SFCGAL@,sfcgal)
-PG_CPPFLAGS += @SFCGAL_CPPFLAGS@
-SHLIB_LINK_F += @SFCGAL_LDFLAGS@
+# Add S2 flags if defined
+ifeq (@S2@,s2)
+PG_CPPFLAGS += @S2_CPPFLAGS@
+SHLIB_LINK_F += @S2_LDFLAGS@
 endif
 
 # Extra files to remove during 'make clean'

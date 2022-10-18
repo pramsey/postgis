@@ -74,6 +74,9 @@
 /* Define to 1 if sfcgal is being built */
 #undef HAVE_SFCGAL
 
+/* Define to 1 if s2 extension is being built */
+#undef HAVE_S2
+
 /* Define to the sub-directory in which libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
