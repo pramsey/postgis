@@ -5,7 +5,7 @@ jobs:
   mingw:
     # TODO: check to see if we need to disable again
     #if: github.repository == 'master'
-    if: true
+    if: false
     name: mingw
     runs-on: windows-latest
     strategy:
@@ -22,7 +22,7 @@ jobs:
     steps:
       # see https://github.com/msys2/setup-msys2
     - name: checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: '${{ matrix.icon }} Setup MSYS2'
       uses: msys2/setup-msys2@v2
       with:
