@@ -57,6 +57,7 @@ SHLIB_LINK_F = @top_builddir@/libpgcommon/libpgcommon.a @top_builddir@/liblwgeom
 # Add S2 flags if defined
 ifeq (@S2@,s2)
 PG_CPPFLAGS += @S2_CPPFLAGS@
+PG_CFLAGS += @S2_CXXFLAGS@
 SHLIB_LINK_F += @S2_LDFLAGS@
 endif
 

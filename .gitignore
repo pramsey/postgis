@@ -160,6 +160,7 @@ regress/sfcgal/Makefile
 regress/postgis.sql
 regress/postgis_garden_result.txt
 regress/raster_garden_result.txt
+s2/Makefile
 sfcgal/Makefile
 sfcgal/regress/Makefile
 sfcgal/regress/tests.mk

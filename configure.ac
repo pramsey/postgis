@@ -46,6 +46,7 @@ dnl
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_GREP
+AC_PROG_CXX
 AC_C_BIGENDIAN
 
 dnl
@@ -832,40 +833,78 @@ dnl ===========================================================================
 dnl S2 library support
 dnl ===========================================================================
 
-HAVE_S2="no"
 AC_ARG_WITH([s2],
 	[AS_HELP_STRING([--with-s2], [Build S2 extension. Requires S2_INCLUDEDIR and S2_LIBDIR to be set.])],
-	[with_s2="yes"],
-	[with_s2="no"] )
+	[S2="yes"],
+	[S2="no"] )
 
-if test "x$with_s2" != "xno"; then
+if test "x$S2" != "xno"; then
 	if (test -n "$S2_INCLUDEDIR" && test -n "$S2_LIBDIR"); then
-	  AC_MSG_NOTICE([Got S2_INCLUDEDIR=$S2_INCLUDEDIR and S2_LIBDIR=$S2_LIBDIR])
-	  HAVE_S2="yes"
+
+	  AC_MSG_RESULT([checking S2_INCLUDEDIR... $S2_INCLUDEDIR])
+	  AC_MSG_RESULT([checking S2_LIBDIR... $S2_LIBDIR])
+
+		CXX_SAVE="$CXX"
+    CC_SAVE="$CC"
+    CFLAGS_SAVE="$CFLAGS"
+    CXXFLAGS_SAVE="$CXXFLAGS"
+    CPPFLAGS_SAVE="$CPPFLAGS"
+    LDFLAGS_SAVE="$LDFLAGS"
+    LIBS_SAVE="$LIBS"
+
+    S2_CXX=`"$PG_CONFIG" --cc`
+    CPPFLAGS="-x c++"
+    CFLAGS=""
+    LDFLAGS="-L$S2_LIBDIR"
+    CPPFLAGS="-I$S2_INCLUDEDIR"
+    LIBS=""
+    CXX="$S2_CXX"
+
+    dnl ============================================================
+    dnl Insist on C++11 to build this
+    dnl ============================================================
+    AC_PROG_CXX
+    AX_CXX_COMPILE_STDCXX(11, noext, mandatory)
+    S2_CXX="$CXX -x c++ -std=c++11"
+
+    dnl ============================================================
+    dnl Check if we can declare the c++ stdlib
+    dnl ============================================================
+    CC="$S2_CXX"
+    AC_CHECK_LIB(c++, main, [HAVE_CPP=yes], [HAVE_CPP=no])
+    AC_CHECK_LIB(stdc++, main, [HAVE_STDCPP=yes], [HAVE_STDCPP=no])
+
+    if test "x$HAVE_CPP" = "xyes"; then
+        S2_LDFLAGS="-ls2 -lc++"
+    elif test "x$HAVE_STDCPP" = "xyes"; then
+        S2_LDFLAGS="-ls2 -lstdc++"
+    else
+        AC_MSG_ERROR([Could not find a C++ standard library])
+    fi
+
+		AC_CHECK_HEADER([s2error.h], [S2_CPPFLAGS="$CPPFLAGS"], [AC_MSG_ERROR([could not find s2error.h - you may need to specify the S2_INCLUDEDIR directory])])
+
+	  S2_LDFLAGS="-L$S2_LIBDIR -ls2 -lstdc++"
+	  S2="yes"
+
+		CXX="$CXX_SAVE"
+    CC="$CC_SAVE"
+    CFLAGS="$CFLAGS_SAVE"
+    CXXFLAGS="$CXXFLAGS_SAVE"
+    CPPFLAGS="$CPPFLAGS_SAVE"
+    LDFLAGS="$LDFLAGS_SAVE"
+    LIBS="$LIBS_SAVE"
+
+	  AC_DEFINE([HAVE_S2], 1, [Define to 1 if s2 is being built])
+
 	else
 		AC_MSG_ERROR([S2_INCLUDEDIR and S2_LIBDIR must be set when using --with-s2])
 	fi
 fi
 
-
-dnl CPPFLAGS_SAVE="$CPPFLAGS"
-dnl CPPFLAGS="$S2_INCLUDEDIR"
-dnl AC_CHECK_HEADER([geos_c.h], [], [AC_MSG_ERROR([could not find geos_c.h - you may need to specify the directory of a geos-config file using --with-geosconfig])])
-dnl CPPFLAGS="$CPPFLAGS_SAVE"
-
-dnl Ensure we can link against libgeos_c
-dnl LIBS_SAVE="$LIBS"
-dnl LIBS="$GEOS_LDFLAGS"
-dnl AC_CHECK_LIB([geos_c], [initGEOS],
-dnl 	[],
-dnl [AC_MSG_ERROR([could not find libgeos_c - you may need to specify the directory of a geos-config file using --with-geosconfig])],
-dnl [])
-dnl LIBS="$LIBS_SAVE"
-
-
-dnl AC_SUBST([S2_CPPFLAGS])
-dnl AC_SUBST([S2_LDFLAGS])
-
+AC_SUBST([S2_CPPFLAGS])
+AC_SUBST([S2_LDFLAGS])
+AC_SUBST([S2_CXXFLAGS])
 
 dnl ===========================================================================
 dnl Detect gettext
@@ -1372,10 +1411,10 @@ fi
 
 AC_SUBST([ADDRESS_STANDARDIZER])
 
-CPPFLAGS="$PGSQL_CPPFLAGS $GEOS_CPPFLAGS $PROJ_CPPFLAGS $PROTOBUF_CPPFLAGS $XML2_CPPFLAGS $SFCGAL_CPPFLAGS $JSON_CPPFLAGS $PCRE_CPPFLAGS $CPPFLAGS"
+CPPFLAGS="$PGSQL_CPPFLAGS $GEOS_CPPFLAGS $PROJ_CPPFLAGS $PROTOBUF_CPPFLAGS $XML2_CPPFLAGS $SFCGAL_CPPFLAGS $S2_CPPFLAGS $JSON_CPPFLAGS $PCRE_CPPFLAGS $CPPFLAGS"
 dnl AC_MSG_RESULT([CPPFLAGS: $CPPFLAGS])
 
-SHLIB_LINK="$PGSQL_LDFLAGS $GEOS_LDFLAGS $PROJ_LDFLAGS $JSON_LDFLAGS $PROTOBUF_LDFLAGS $XML2_LDFLAGS $SFCGAL_LDFLAGS $EXCLUDELIBS_LDFLAGS $LDFLAGS"
+SHLIB_LINK="$PGSQL_LDFLAGS $GEOS_LDFLAGS $PROJ_LDFLAGS $JSON_LDFLAGS $PROTOBUF_LDFLAGS $XML2_LDFLAGS $SFCGAL_LDFLAGS $S2_LDFLAGS $EXCLUDELIBS_LDFLAGS $LDFLAGS"
 AC_SUBST([SHLIB_LINK])
 dnl AC_MSG_RESULT([SHLIB_LINK: $SHLIB_LINK])
 
@@ -1794,6 +1833,7 @@ AC_CONFIG_FILES([GNUmakefile
    regress/core/tests.mk
    regress/dumper/Makefile
    regress/loader/Makefile
+   s2/Makefile
    doc/Makefile
    doc/Makefile.comments
    $TRANSLATIONS_MAKEFILE_LIST
@@ -1847,7 +1887,7 @@ if test "x$SFCGAL" = "xsfcgal"; then
     AC_MSG_RESULT([  SFCGAL config:        ${SFCGAL_CONFIG}])
     AC_MSG_RESULT([  SFCGAL version:       ${SFCGAL_VERSION}])
 fi
-if test "x$HAVE_S2" = "xyes"; then
+if test "x$S2" = "xyes"; then
     AC_MSG_RESULT([  S2 libs:              ${S2_LIBDIR}])
     AC_MSG_RESULT([  S2 includes:          ${S2_INCLUDEDIR}])
 fi
@@ -1888,7 +1928,7 @@ if test "x$SFCGAL" = "xsfcgal"; then
 else
     AC_MSG_RESULT([  SFCGAL support:                     disabled])
 fi
-if test "x$HAVE_S2" = "xyes"; then
+if test "x$S2" = "xyes"; then
     AC_MSG_RESULT([  S2 support:                         enabled])
 else
     AC_MSG_RESULT([  S2 support:                         disabled])
