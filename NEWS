@@ -10,6 +10,7 @@ of the PostGIS 2.5 series.
            specified (Regina Obe)
   - #5240, ST_DumpPoints crash with empty polygon (Regina Obe)
   - #5084, Bad rasterization of linestring (Gilles Vuidel)
+ - #5662, Change XML parsers to SAX2 (Paul Ramsey)
 
 PostGIS 2.5.8
 2022/08/17
