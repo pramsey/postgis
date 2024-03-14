@@ -765,7 +765,6 @@ rect_tree_from_lwpoly(const LWGEOM *lwgeom)
 	/* Put the top nodes in a z-order curve for a spatially coherent */
 	/* tree after node merge */
 	qsort(nodes, j, sizeof(RECT_NODE*), rect_node_cmp);
-
 	tree = rect_nodes_merge(nodes, j);
 	tree->geom_type = lwgeom->type;
 	lwfree(nodes);
@@ -852,9 +851,7 @@ rect_tree_from_lwcollection(const LWGEOM *lwgeom)
 	/* Note: CompoundCurve has edges already spatially organized, no */
 	/* sorting needed */
 	if (lwgeom->type != COMPOUNDTYPE)
-	{
 		qsort(nodes, j, sizeof(RECT_NODE*), rect_node_cmp);
-	}
 
 	tree = rect_nodes_merge(nodes, j);
 
@@ -893,6 +890,86 @@ rect_tree_from_lwgeom(const LWGEOM *lwgeom)
 			return NULL;
 	}
 	return NULL;
+}
+
+
+static uint32_t
+rect_node_count_nodes(uint32_t level_nodes)
+{
+	uint32_t num_nodes = 0;
+	while(level_nodes > 1)
+	{
+		uint32_t next_level_nodes = level_nodes / RECT_NODE_SIZE;
+		/* For now, always slightly over-allocate space */
+		/* next_level_nodes += ((level_nodes % RECT_NODE_SIZE) > 0); */
+		next_level_nodes += 1;
+		num_nodes += level_nodes;
+		level_nodes = next_level_nodes;
+	}
+	/* and the root node */
+	return num_nodes + 1;
+}
+
+static uint32_t
+rect_node_count_from_lwline(const LWGEOM *lwgeom)
+{
+	LWLINE* line = (LWLINE*)lwgeom;
+	return rect_node_count_nodes(line->points->npoints - 1);
+}
+
+static uint32_t
+rect_node_count_from_lwpoly(const LWGEOM *lwgeom)
+{
+	LWPOLY* poly = (LWPOLY*)lwgeom;
+	uint32_t num_nodes = rect_node_count_nodes(poly->nrings);
+	for (uint32_t i = 0; i < poly->nrings; i++)
+	{
+		num_nodes += rect_node_count_nodes(poly->rings[i]->npoints - 1);
+	}
+	return num_nodes;
+}
+
+static uint32_t
+rect_node_count_from_lwcollection(const LWGEOM *lwgeom)
+{
+	LWCOLLECTION* col = (LWCOLLECTION*)lwgeom;
+	uint32_t num_nodes = rect_node_count_nodes(col->ngeoms);
+	for (uint32_t i = 0; i < col->ngeoms; i++)
+	{
+		num_nodes += rect_node_count_from_lwgeom(col->geoms[i]);
+	}
+	return num_nodes;
+}
+
+uint32_t
+rect_node_count_from_lwgeom(const LWGEOM *lwgeom)
+{
+	switch(lwgeom->type)
+	{
+		case POINTTYPE:
+			return 1;
+		case TRIANGLETYPE:
+		case CIRCSTRINGTYPE:
+		case LINETYPE:
+			return rect_node_count_from_lwline(lwgeom);
+		case POLYGONTYPE:
+			return rect_node_count_from_lwpoly(lwgeom);
+		case CURVEPOLYTYPE:
+		case COMPOUNDTYPE:
+		case MULTICURVETYPE:
+		case MULTISURFACETYPE:
+		case MULTIPOINTTYPE:
+		case MULTILINETYPE:
+		case MULTIPOLYGONTYPE:
+		case POLYHEDRALSURFACETYPE:
+		case TINTYPE:
+		case COLLECTIONTYPE:
+			return rect_node_count_from_lwcollection(lwgeom);
+		default:
+			lwerror("%s: Unknown geometry type: %s", __func__, lwtype_name(lwgeom->type));
+			return 0;
+	}
+	return 0;
 }
 
 /*

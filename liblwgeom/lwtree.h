@@ -77,6 +77,18 @@ typedef struct rect_node
 	};
 } RECT_NODE;
 
+/*
+* Allocate a flat array of RECT_NODE for
+* locality reasons, and then parcel out references
+* into that array in the *_new() functions.
+*/
+typedef struct rect_tree
+{
+	RECT_NODE *root;
+	RECT_NODE *buffer;
+	uint32_t next;
+} RECT_TREE;
+
 typedef struct rect_tree_distance_state
 {
 	double threshold;
@@ -112,3 +124,5 @@ RECT_NODE * rect_tree_from_ptarray(const POINTARRAY *pa, int geom_type);
 LWGEOM * rect_tree_to_lwgeom(const RECT_NODE *tree);
 char * rect_tree_to_wkt(const RECT_NODE *node);
 void rect_tree_printf(const RECT_NODE *node, int depth);
+uint32_t rect_node_count_from_lwgeom(const LWGEOM *lwgeom);
+
