@@ -340,6 +340,7 @@ rect_node_ring_contains_point(const RECT_NODE *node, const POINT2D *pt, int *on_
 	return 0;
 }
 
+
 /*
 * Only pass in the head of an "area" type. Polygon or CurvePolygon.
 * Sums up containment of exterior (+1) and interior (-1) rings, so
@@ -386,7 +387,7 @@ rect_node_area_contains_point(const RECT_NODE *node, const POINT2D *pt)
 /*
 * Simple containment test for node/point inputs
 */
-static int
+static inline int
 rect_node_bounds_point(const RECT_NODE *node, const POINT2D *pt)
 {
 	if (pt->y < node->ymin || pt->y > node->ymax ||
@@ -400,7 +401,7 @@ rect_node_bounds_point(const RECT_NODE *node, const POINT2D *pt)
 * Pass in arbitrary tree, get back true if point is contained or on boundary,
 * and false otherwise.
 */
-int
+static int
 rect_node_contains_point(const RECT_NODE *node, const POINT2D *pt)
 {
 	int i, c;
@@ -416,7 +417,7 @@ rect_node_contains_point(const RECT_NODE *node, const POINT2D *pt)
 	{
 		case POLYGONTYPE:
 		case CURVEPOLYTYPE:
-			return rect_node_contains_point(node, pt) > 0;
+			return rect_node_area_contains_point(node, pt) > 0;
 
 		case MULTIPOLYGONTYPE:
 		case MULTISURFACETYPE:
@@ -424,7 +425,7 @@ rect_node_contains_point(const RECT_NODE *node, const POINT2D *pt)
 		{
 			for (i = 0; i < node->i.num_nodes; i++)
 			{
-				c = rect_node_contains_point(node->i.nodes[i], pt);
+				c = rect_node_area_contains_point(node->i.nodes[i], pt);
 				if (c) return LW_TRUE;
 			}
 			return LW_FALSE;
@@ -434,6 +435,12 @@ rect_node_contains_point(const RECT_NODE *node, const POINT2D *pt)
 			return LW_FALSE;
 	}
 }
+
+int rect_tree_contains_point(const RECT_TREE *tree, const POINT2D *pt)
+{
+    return rect_node_contains_point(tree->root, pt);
+}
+
 
 /*
 * For area types, doing intersects and distance, we will

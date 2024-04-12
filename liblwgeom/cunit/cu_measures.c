@@ -328,7 +328,7 @@ test_mindistance3d_tolerance(void)
 	    0, zero_accepted_error);
 }
 
-static int tree_pt(RECT_NODE *tree, double x, double y)
+static int tree_pt(RECT_TREE *tree, double x, double y)
 {
 	POINT2D pt;
 	pt.x = x; pt.y = y;
@@ -337,14 +337,11 @@ static int tree_pt(RECT_NODE *tree, double x, double y)
 
 static void test_rect_tree_contains_point(void)
 {
-	LWGEOM *poly;
-	RECT_NODE* tree;
-
 	/**********************************************************************
 	* curvepolygon
 	*/
-	poly = lwgeom_from_wkt("CURVEPOLYGON(COMPOUNDCURVE(CIRCULARSTRING(0 0,1 5,0 10),(0 10,10 10,10 0, 0 0)),COMPOUNDCURVE(CIRCULARSTRING(3 7,5 8,7 7),(7 7,7 3,3 3, 3 7)))", LW_PARSER_CHECK_NONE);
-	tree = rect_tree_from_lwgeom(poly);
+	LWGEOM *poly = lwgeom_from_wkt("CURVEPOLYGON(COMPOUNDCURVE(CIRCULARSTRING(0 0,1 5,0 10),(0 10,10 10,10 0, 0 0)),COMPOUNDCURVE(CIRCULARSTRING(3 7,5 8,7 7),(7 7,7 3,3 3, 3 7)))", LW_PARSER_CHECK_NONE);
+	RECT_TREE* tree = rect_tree_from_lwgeom(poly);
 	// char *wkt = rect_tree_to_wkt(tree);
 	// printf("%s\n", wkt);
 	// lwfree(wkt);
