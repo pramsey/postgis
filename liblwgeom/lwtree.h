@@ -24,6 +24,8 @@
 
 #define RECT_NODE_SIZE 8
 
+#define RECT_TREE_QUEUE_SIZE 64
+
 typedef enum
 {
 	RECT_NODE_INTERNAL_TYPE,
@@ -56,7 +58,7 @@ struct rect_node;
 
 typedef struct
 {
-	int num_nodes;
+	unsigned int num_nodes;
 	RECT_NODE_RING_TYPE ring_type;
 	struct rect_node *nodes[RECT_NODE_SIZE];
 	int sorted;
@@ -90,14 +92,15 @@ typedef struct rect_tree
 	uint32_t capacity;
 } RECT_TREE;
 
-typedef struct rect_tree_distance_state
+
+typedef struct rect_tree_query_state
 {
 	double threshold;
 	double min_dist;
 	double max_dist;
 	POINT2D p1;
 	POINT2D p2;
-} RECT_TREE_DISTANCE_STATE;
+} RECT_TREE_QUERY_STATE;
 
 /**
 * Create a tree index on top an LWGEOM. Do not free the LWGEOM

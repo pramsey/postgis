@@ -26,6 +26,7 @@
 #include "lwgeom_log.h"
 #include "lwtree.h"
 #include "measures.h"
+#include "pqueue.h"
 
 static inline int
 rect_node_is_leaf(const RECT_NODE *node)
@@ -86,6 +87,7 @@ rect_tree_get_node(RECT_TREE *tree)
 	tree->next++;
 	return node;
 }
+
 
 static int
 rect_leaf_node_intersects(const RECT_NODE_LEAF *n1, const RECT_NODE_LEAF *n2)
@@ -329,7 +331,7 @@ rect_node_ring_contains_point(const RECT_NODE *node, const POINT2D *pt, int *on_
 		}
 		else
 		{
-			int i, r = 0;
+			uint32_t i, r = 0;
 			for (i = 0; i < node->i.num_nodes; i++)
 			{
 				r += rect_node_ring_contains_point(node->i.nodes[i], pt, on_boundary);
@@ -357,7 +359,7 @@ rect_node_area_contains_point(const RECT_NODE *node, const POINT2D *pt)
 	/* Iterate into area until we find ring heads */
 	if (node->i.ring_type == RECT_NODE_RING_NONE)
 	{
-		int i, sum = 0;
+		uint32_t i, sum = 0;
 		for (i = 0; i < node->i.num_nodes; i++)
 			sum += rect_node_area_contains_point(node->i.nodes[i], pt);
 		return sum;
@@ -404,7 +406,8 @@ rect_node_bounds_point(const RECT_NODE *node, const POINT2D *pt)
 static int
 rect_node_contains_point(const RECT_NODE *node, const POINT2D *pt)
 {
-	int i, c;
+	uint32_t i;
+	int c;
 
 	/* Empty/invalid things cannot contain or be contained */
 	if (!(node && pt)) return LW_FALSE;
@@ -464,7 +467,7 @@ rect_node_is_area(const RECT_NODE *node)
 				return LW_FALSE;
 			else
 			{
-				int i;
+				uint32_t i;
 				for (i = 0; i < node->i.num_nodes; i++)
 				{
 					if (rect_node_is_area(node->i.nodes[i]))
@@ -701,7 +704,7 @@ rect_node_to_lwgeom(const RECT_NODE *node)
 	}
 	else
 	{
-		int i;
+		uint32_t i;
 		LWCOLLECTION *col = lwcollection_construct_empty(COLLECTIONTYPE, 0, 0, 0);
 		lwcollection_add_lwgeom(col, poly);
 		for (i = 0; i < node->i.num_nodes; i++)
@@ -735,7 +738,7 @@ rect_node_printf(const RECT_NODE *node, int depth)
 	}
 	else
 	{
-		int i;
+		uint32_t i;
 		for (i = 0; i < node->i.num_nodes; i++)
 		{
 			rect_node_printf(node->i.nodes[i], depth+2);
@@ -948,14 +951,14 @@ rect_node_count_nodes(uint32_t level_nodes)
 static uint32_t
 rect_node_count_from_lwline(const LWGEOM *lwgeom)
 {
-	LWLINE* line = (LWLINE*)lwgeom;
+	const LWLINE* line = (const LWLINE*)lwgeom;
 	return rect_node_count_nodes(line->points->npoints - 1);
 }
 
 static uint32_t
 rect_node_count_from_lwpoly(const LWGEOM *lwgeom)
 {
-	LWPOLY* poly = (LWPOLY*)lwgeom;
+	const LWPOLY* poly = (const LWPOLY*)lwgeom;
 	uint32_t num_nodes = rect_node_count_nodes(poly->nrings);
 	for (uint32_t i = 0; i < poly->nrings; i++)
 	{
@@ -967,7 +970,7 @@ rect_node_count_from_lwpoly(const LWGEOM *lwgeom)
 static uint32_t
 rect_node_count_from_lwcollection(const LWGEOM *lwgeom)
 {
-	LWCOLLECTION* col = (LWCOLLECTION*)lwgeom;
+	const LWCOLLECTION* col = (const LWCOLLECTION*)lwgeom;
 	uint32_t num_nodes = rect_node_count_nodes(col->ngeoms);
 	for (uint32_t i = 0; i < col->ngeoms; i++)
 	{
@@ -1021,6 +1024,7 @@ rect_node_get_point(const RECT_NODE *node)
 		return rect_node_get_point(node->i.nodes[0]);
 }
 
+
 static inline int
 rect_node_intersects(const RECT_NODE *n1, const RECT_NODE *n2)
 {
@@ -1034,6 +1038,7 @@ rect_node_intersects(const RECT_NODE *n1, const RECT_NODE *n2)
 		return 1;
 	}
 }
+
 
 #if POSTGIS_DEBUG_LEVEL >= 4
 static char *
@@ -1053,7 +1058,7 @@ rect_node_to_str(const RECT_NODE *n)
 static int
 rect_node_intersects_node_recursive(const RECT_NODE *n1, const RECT_NODE *n2)
 {
-	int i, j;
+	uint32_t i, j;
 #if POSTGIS_DEBUG_LEVEL >= 4
 	char *n1_str = rect_node_to_str(n1);
 	char *n2_str = rect_node_to_str(n2);
@@ -1107,8 +1112,8 @@ rect_node_intersects_node_recursive(const RECT_NODE *n1, const RECT_NODE *n2)
 int
 rect_tree_intersects_tree(const RECT_TREE *t1, const RECT_TREE *t2)
 {
-	RECT_NODE *n1 = t1->root;
-	RECT_NODE *n2 = t2->root;
+	const RECT_NODE *n1 = t1->root;
+	const RECT_NODE *n2 = t2->root;
 
 	/*
 	* It is possible for an area to intersect another object
@@ -1182,18 +1187,36 @@ rect_node_min_distance(const RECT_NODE *n1, const RECT_NODE *n2)
 /*
 * The furthest apart the objects in two nodes can be is if they
 * are at opposite corners of the bbox that contains both nodes
+* TODO, this is not quite right. For the fully contained case, the
+* maximum distance is actually smaller than the largest box.
+*/
+// static inline double
+// rect_node_max_distance(const RECT_NODE *n1, const RECT_NODE *n2)
+// {
+// 	double d11 =
+// 	double xmin = FP_MIN(n1->xmin, n2->xmin);
+// 	double ymin = FP_MIN(n1->ymin, n2->ymin);
+// 	double xmax = FP_MAX(n1->xmax, n2->xmax);
+// 	double ymax = FP_MAX(n1->ymax, n2->ymax);
+// 	double dx = xmax - xmin;
+// 	double dy = ymax - ymin;
+// 	//lwnotice("rect_node_max_distance");
+// 	return sqrt(dx*dx + dy*dy);
+// }
+
+/*
+* The maximum distance between opposing corners seems to
+* capture the "maximum distance a child node could be
+* from another child node" better than the old function.
 */
 static inline double
 rect_node_max_distance(const RECT_NODE *n1, const RECT_NODE *n2)
 {
-	double xmin = FP_MIN(n1->xmin, n2->xmin);
-	double ymin = FP_MIN(n1->ymin, n2->ymin);
-	double xmax = FP_MAX(n1->xmax, n2->xmax);
-	double ymax = FP_MAX(n1->ymax, n2->ymax);
-	double dx = xmax - xmin;
-	double dy = ymax - ymin;
-	//lwnotice("rect_node_max_distance");
-	return sqrt(dx*dx + dy*dy);
+	double d00 = distance(n1->xmin, n1->ymin, n2->xmax, n2->ymax);
+	double d11 = distance(n1->xmax, n1->ymax, n2->xmin, n2->ymin);
+	double d01 = distance(n1->xmin, n1->ymax, n2->xmax, n2->ymin);
+	double d10 = distance(n1->xmax, n1->ymin, n2->xmin, n2->ymax);
+	return FP_MAX(FP_MAX(d00, d11), FP_MAX(d10, d01));
 }
 
 /*
@@ -1206,7 +1229,7 @@ rect_node_max_distance(const RECT_NODE *n1, const RECT_NODE *n2)
 * up the right combination of inputs to the right distance calculation.
 */
 static double
-rect_leaf_node_distance(const RECT_NODE_LEAF *n1, const RECT_NODE_LEAF *n2, RECT_TREE_DISTANCE_STATE *state)
+rect_leaf_node_distance(const RECT_NODE_LEAF *n1, const RECT_NODE_LEAF *n2, RECT_TREE_QUERY_STATE *state)
 {
 	const POINT2D *p1, *p2, *p3, *q1, *q2, *q3;
 	DISTPTS dl;
@@ -1235,7 +1258,7 @@ rect_leaf_node_distance(const RECT_NODE_LEAF *n1, const RECT_NODE_LEAF *n2, RECT
 					break;
 
 				case RECT_NODE_SEG_CIRCULAR:
-				q1 = getPoint2d_cp(n2->pa, n2->seg_num*2);
+					q1 = getPoint2d_cp(n2->pa, n2->seg_num*2);
 					q2 = getPoint2d_cp(n2->pa, n2->seg_num*2+1);
 					q3 = getPoint2d_cp(n2->pa, n2->seg_num*2+2);
 					lw_dist2d_pt_arc(p1, q1, q2, q3, &dl);
@@ -1332,7 +1355,7 @@ rect_leaf_node_distance(const RECT_NODE_LEAF *n1, const RECT_NODE_LEAF *n2, RECT
 
 
 static double
-rect_node_distance_node_recursive(const RECT_NODE *n1, const RECT_NODE *n2, RECT_TREE_DISTANCE_STATE *state)
+rect_node_distance_node_recursive(const RECT_NODE *n1, const RECT_NODE *n2, RECT_TREE_QUERY_STATE *state)
 {
 	double min, max;
 
@@ -1362,7 +1385,7 @@ rect_node_distance_node_recursive(const RECT_NODE *n1, const RECT_NODE *n2, RECT
 	/* Recurse into nodes */
 	else
 	{
-		int i, j;
+		uint32_t i, j;
 		double d_min = FLT_MAX;
 		if (rect_node_is_leaf(n1) && !rect_node_is_leaf(n2))
 		{
@@ -1395,14 +1418,165 @@ rect_node_distance_node_recursive(const RECT_NODE *n1, const RECT_NODE *n2, RECT
 	}
 }
 
+
+
+//xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+//xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+//xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+typedef struct node_pair_t
+{
+	pqueue_pri_t pri;
+	size_t pos;
+	double min_dist;
+	double max_dist;
+	const RECT_NODE *n1;
+	const RECT_NODE *n2;
+} node_pair_t;
+
+typedef struct node_pair_list_t
+{
+	size_t size;
+	size_t capacity;
+	node_pair_t *items;
+} node_pair_list_t;
+
+node_pair_list_t node_pair_list;
+
+static size_t
+get_pos(void *node_pair)
+{
+	return ((node_pair_t*)node_pair)->pos;
+}
+
+static void
+set_pos(void *node_pair, size_t pos)
+{
+	((node_pair_t*)node_pair)->pos = pos;
+}
+
+static pqueue_pri_t
+get_pri(void *node_pair)
+{
+	return ((node_pair_t*)node_pair)->pri;
+}
+
+static void
+set_pri(void *node_pair, pqueue_pri_t pri)
+{
+	((node_pair_t*)node_pair)->pri = pri;
+}
+
+static int
+cmp_pri(pqueue_pri_t next, pqueue_pri_t curr)
+{
+	/* Smallest has most priority */
+	return next > curr;
+}
+
+static node_pair_t *
+rect_node_distance_node_pair(const RECT_NODE *n1, const RECT_NODE *n2)
+{
+	node_pair_t *node_pair;
+	if (node_pair_list.size >= node_pair_list.capacity)
+	{
+		node_pair_list.capacity *= 2;
+		node_pair_list.items = lwrealloc(node_pair_list.items, node_pair_list.capacity);
+	}
+	node_pair = &(node_pair_list.items[node_pair_list.size++]);
+	memset(node_pair, 0, sizeof(node_pair_t));
+
+	node_pair->min_dist = rect_node_min_distance(n1, n2);
+	node_pair->max_dist = rect_node_max_distance(n1, n2);
+	node_pair->n1 = n1;
+	node_pair->n2 = n2;
+	node_pair->pri = node_pair->min_dist;
+	return node_pair;
+}
+
+static double
+rect_node_distance_node_queue(const RECT_NODE *root1, const RECT_NODE *root2, RECT_TREE_QUERY_STATE *state)
+{
+	const node_pair_t *nodePair;
+	size_t i, j;
+
+	pqueue_t *queue = pqueue_init(RECT_TREE_QUEUE_SIZE, cmp_pri, get_pri, set_pri, get_pos, set_pos);
+
+	/* Add the first node pair to prime the queue */
+	pqueue_insert(queue, rect_node_distance_node_pair(root1, root2));
+
+	while ((nodePair = pqueue_pop(queue)))
+	{
+		const RECT_NODE *n1 = nodePair->n1;
+		const RECT_NODE *n2 = nodePair->n2;
+
+		bool n1_is_leaf = rect_node_is_leaf(n1);
+		bool n2_is_leaf = rect_node_is_leaf(n2);
+
+		/* Short circuit if we've already hit the minimum */
+		if (state->min_dist < state->threshold || state->min_dist == 0.0)
+		{
+			break;
+		}
+
+		/* If your minimum distance is greater than anyone's, */
+		/* maximum distance you cannot hold the nearest pair of leaves */
+		if (nodePair->min_dist > state->max_dist)
+		{
+			//lwnotice("pruning pair %p, %p", n1, n2);
+			LWDEBUGF(4, "pruning pair %p, %p", n1, n2);
+			continue;
+		}
+
+		/* If your maximum distance is a new low, */
+		/* we'll use that as our new global tolerance */
+		if (nodePair->max_dist < state->max_dist)
+			state->max_dist = nodePair->max_dist;
+
+		/* If both nodes are leaves, do a real distance calculation */
+		if (n1_is_leaf && n2_is_leaf)
+		{
+			/* This updates the state nearest points and min_dist */
+			/* if a new minimum is found */
+			rect_leaf_node_distance(&n1->l, &n2->l, state);
+			continue;
+		}
+		/* If one is a leaf, add node pair combos to the queue */
+		else if (n2_is_leaf && !n1_is_leaf)
+		{
+			for (i = 0; i < n1->i.num_nodes; i++)
+				pqueue_insert(queue, rect_node_distance_node_pair(n1->i.nodes[i], n2));
+		}
+		/* If one is a leaf, add node pair combos to the queue */
+		else if (n1_is_leaf && !n2_is_leaf)
+		{
+			for (i = 0; i < n2->i.num_nodes; i++)
+				pqueue_insert(queue, rect_node_distance_node_pair(n1, n2->i.nodes[i]));
+		}
+		/* Both nodes are internal, add all child combos to the queue */
+		else
+		{
+			for (i = 0; i < n1->i.num_nodes; i++)
+				for (j = 0; j < n2->i.num_nodes; j++)
+					pqueue_insert(queue, rect_node_distance_node_pair(n1->i.nodes[i], n2->i.nodes[j]));
+		}
+
+		/* Go back and pop another off the top */
+	}
+
+	return state->min_dist;
+}
+
+
+
 double rect_tree_distance_tree(const RECT_TREE *t1, const RECT_TREE *t2, double threshold)
 {
 	double distance;
 
-	RECT_NODE *n1 = t1->root;
-	RECT_NODE *n2 = t2->root;
+	const RECT_NODE *n1 = t1->root;
+	const RECT_NODE *n2 = t2->root;
 
-	RECT_TREE_DISTANCE_STATE state;
+	RECT_TREE_QUERY_STATE state;
 
 	/*
 	* It is possible for an area to intersect another object
@@ -1422,11 +1596,26 @@ double rect_tree_distance_tree(const RECT_TREE *t1, const RECT_TREE *t2, double 
 		return 0.0;
 	}
 
+	/* Initialize state */
 	state.threshold = threshold;
 	state.min_dist = FLT_MAX;
 	state.max_dist = FLT_MAX;
-	distance = rect_node_distance_node_recursive(n1, n2, &state);
+
+	/* Initialize state */
+	node_pair_list.capacity = RECT_TREE_QUEUE_SIZE;
+	node_pair_list.size = 0;
+	node_pair_list.items = lwalloc0(node_pair_list.capacity * sizeof(node_pair_t));
+
+	distance = rect_node_distance_node_queue(n1, n2, &state);
+	// distance = rect_node_distance_node_recursive(n1, n2, &state);
+
+	lwfree(node_pair_list.items);
+
 	// *p1 = state.p1;
 	// *p2 = state.p2;
 	return distance;
 }
+
+
+
+

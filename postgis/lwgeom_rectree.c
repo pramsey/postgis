@@ -51,18 +51,18 @@ Datum ST_DistanceRectTreeCached(PG_FUNCTION_ARGS);
 */
 typedef struct {
 	GeomCache           gcache;
-	RECT_NODE           *index;
+	RECT_TREE           *index;
 } RectTreeGeomCache;
 
 
 /**
-* Builder, freeer and public accessor for cached RECT_NODE trees
+* Builder, freeer and public accessor for cached RECT_TREE trees
 */
 static int
 RectTreeBuilder(const LWGEOM *lwgeom, GeomCache *cache)
 {
 	RectTreeGeomCache *rect_cache = (RectTreeGeomCache*)cache;
-	RECT_NODE *tree = rect_tree_from_lwgeom(lwgeom);
+	RECT_TREE *tree = rect_tree_from_lwgeom(lwgeom);
 
 	if ( rect_cache->index )
 	{
@@ -122,7 +122,7 @@ Datum ST_DistanceRectTree(PG_FUNCTION_ARGS)
 	GSERIALIZED *g1 = PG_GETARG_GSERIALIZED_P(0);
 	GSERIALIZED *g2 = PG_GETARG_GSERIALIZED_P(1);
 	LWGEOM *lwg1, *lwg2;
-	RECT_NODE *n1, *n2;
+	RECT_TREE *t1, *t2;
 
 	/* Return NULL on empty arguments. */
 	if (gserialized_is_empty(g1) || gserialized_is_empty(g2))
@@ -140,9 +140,9 @@ Datum ST_DistanceRectTree(PG_FUNCTION_ARGS)
 		PG_RETURN_FLOAT8(lwgeom_mindistance2d(lwg1, lwg2));
 
 
-	n1 = rect_tree_from_lwgeom(lwg1);
-	n2 = rect_tree_from_lwgeom(lwg2);
-	PG_RETURN_FLOAT8(rect_tree_distance_tree(n1, n2, 0.0));
+	t1 = rect_tree_from_lwgeom(lwg1);
+	t2 = rect_tree_from_lwgeom(lwg2);
+	PG_RETURN_FLOAT8(rect_tree_distance_tree(t1, t2, 0.0));
 }
 
 PG_FUNCTION_INFO_V1(ST_DistanceRectTreeCached);
@@ -173,8 +173,8 @@ Datum ST_DistanceRectTreeCached(PG_FUNCTION_ARGS)
 
 	if (tree_cache && tree_cache->gcache.argnum)
 	{
-		RECT_NODE *n;
-		RECT_NODE *n_cached = tree_cache->index;
+		RECT_TREE *n;
+		RECT_TREE *n_cached = tree_cache->index;
 		if (tree_cache->gcache.argnum == 1)
 		{
 			LWGEOM *lwg2 = lwgeom_from_gserialized(g2);
