@@ -1564,6 +1564,8 @@ rect_node_distance_node_queue(const RECT_NODE *root1, const RECT_NODE *root2, RE
 		/* Go back and pop another off the top */
 	}
 
+	pqueue_free(queue);
+
 	return state->min_dist;
 }
 
