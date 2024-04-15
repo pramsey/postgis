@@ -162,7 +162,7 @@ void *pqueue_peek(pqueue_t *q);
  * @param the callback function to print the entry
  */
 void
-pqueue_print(pqueue_t *q, 
+pqueue_print(pqueue_t *q,
              FILE *out,
              pqueue_print_entry_f print);
 
@@ -176,7 +176,7 @@ pqueue_print(pqueue_t *q,
  * @param the callback function to print the entry
  */
 void
-pqueue_dump(pqueue_t *q, 
+pqueue_dump(pqueue_t *q,
              FILE *out,
              pqueue_print_entry_f print);
 

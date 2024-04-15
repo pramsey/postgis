@@ -1585,13 +1585,13 @@ double rect_tree_distance_tree(const RECT_TREE *t1, const RECT_TREE *t2, double 
 	* so we do a quick point-in-poly test first for those cases
 	*/
 	if (rect_node_is_area(n1) &&
-		rect_node_contains_point(n1, rect_node_get_point(n2)))
+	    rect_node_contains_point(n1, rect_node_get_point(n2)))
 	{
 		return 0.0;
 	}
 
 	if (rect_node_is_area(n2) &&
-		rect_node_contains_point(n2, rect_node_get_point(n1)))
+	    rect_node_contains_point(n2, rect_node_get_point(n1)))
 	{
 		return 0.0;
 	}
