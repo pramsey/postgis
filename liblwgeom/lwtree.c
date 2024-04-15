@@ -1354,69 +1354,69 @@ rect_leaf_node_distance(const RECT_NODE_LEAF *n1, const RECT_NODE_LEAF *n2, RECT
 }
 
 
-static double
-rect_node_distance_node_recursive(const RECT_NODE *n1, const RECT_NODE *n2, RECT_TREE_QUERY_STATE *state)
-{
-	double min, max;
+// static double
+// rect_node_distance_node_recursive(const RECT_NODE *n1, const RECT_NODE *n2, RECT_TREE_QUERY_STATE *state)
+// {
+// 	double min, max;
 
-	/* Short circuit if we've already hit the minimum */
-	if (state->min_dist < state->threshold || state->min_dist == 0.0)
-		return state->min_dist;
+// 	/* Short circuit if we've already hit the minimum */
+// 	if (state->min_dist < state->threshold || state->min_dist == 0.0)
+// 		return state->min_dist;
 
-	/* If your minimum is greater than anyone's maximum, you can't hold the winner */
-	min = rect_node_min_distance(n1, n2);
-	if (min > state->max_dist)
-	{
-		//lwnotice("pruning pair %p, %p", n1, n2);
-		LWDEBUGF(4, "pruning pair %p, %p", n1, n2);
-		return FLT_MAX;
-	}
+// 	/* If your minimum is greater than anyone's maximum, you can't hold the winner */
+// 	min = rect_node_min_distance(n1, n2);
+// 	if (min > state->max_dist)
+// 	{
+// 		//lwnotice("pruning pair %p, %p", n1, n2);
+// 		LWDEBUGF(4, "pruning pair %p, %p", n1, n2);
+// 		return FLT_MAX;
+// 	}
 
-	/* If your maximum is a new low, we'll use that as our new global tolerance */
-	max = rect_node_max_distance(n1, n2);
-	if (max < state->max_dist)
-		state->max_dist = max;
+// 	/* If your maximum is a new low, we'll use that as our new global tolerance */
+// 	max = rect_node_max_distance(n1, n2);
+// 	if (max < state->max_dist)
+// 		state->max_dist = max;
 
-	/* Both leaf nodes, do a real distance calculation */
-	if (rect_node_is_leaf(n1) && rect_node_is_leaf(n2))
-	{
-		return rect_leaf_node_distance(&n1->l, &n2->l, state);
-	}
-	/* Recurse into nodes */
-	else
-	{
-		uint32_t i, j;
-		double d_min = FLT_MAX;
-		if (rect_node_is_leaf(n1) && !rect_node_is_leaf(n2))
-		{
-			for (i = 0; i < n2->i.num_nodes; i++)
-			{
-				min = rect_node_distance_node_recursive(n1, n2->i.nodes[i], state);
-				d_min = FP_MIN(d_min, min);
-			}
-		}
-		else if (rect_node_is_leaf(n2) && !rect_node_is_leaf(n1))
-		{
-			for (i = 0; i < n1->i.num_nodes; i++)
-			{
-				min = rect_node_distance_node_recursive(n1->i.nodes[i], n2, state);
-				d_min = FP_MIN(d_min, min);
-			}
-		}
-		else
-		{
-			for (i = 0; i < n1->i.num_nodes; i++)
-			{
-				for (j = 0; j < n2->i.num_nodes; j++)
-				{
-					min = rect_node_distance_node_recursive(n1->i.nodes[i], n2->i.nodes[j], state);
-					d_min = FP_MIN(d_min, min);
-				}
-			}
-		}
-		return d_min;
-	}
-}
+// 	/* Both leaf nodes, do a real distance calculation */
+// 	if (rect_node_is_leaf(n1) && rect_node_is_leaf(n2))
+// 	{
+// 		return rect_leaf_node_distance(&n1->l, &n2->l, state);
+// 	}
+// 	/* Recurse into nodes */
+// 	else
+// 	{
+// 		uint32_t i, j;
+// 		double d_min = FLT_MAX;
+// 		if (rect_node_is_leaf(n1) && !rect_node_is_leaf(n2))
+// 		{
+// 			for (i = 0; i < n2->i.num_nodes; i++)
+// 			{
+// 				min = rect_node_distance_node_recursive(n1, n2->i.nodes[i], state);
+// 				d_min = FP_MIN(d_min, min);
+// 			}
+// 		}
+// 		else if (rect_node_is_leaf(n2) && !rect_node_is_leaf(n1))
+// 		{
+// 			for (i = 0; i < n1->i.num_nodes; i++)
+// 			{
+// 				min = rect_node_distance_node_recursive(n1->i.nodes[i], n2, state);
+// 				d_min = FP_MIN(d_min, min);
+// 			}
+// 		}
+// 		else
+// 		{
+// 			for (i = 0; i < n1->i.num_nodes; i++)
+// 			{
+// 				for (j = 0; j < n2->i.num_nodes; j++)
+// 				{
+// 					min = rect_node_distance_node_recursive(n1->i.nodes[i], n2->i.nodes[j], state);
+// 					d_min = FP_MIN(d_min, min);
+// 				}
+// 			}
+// 		}
+// 		return d_min;
+// 	}
+// }
 
 
 
