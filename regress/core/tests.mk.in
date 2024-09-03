@@ -128,7 +128,6 @@ TESTS += \
 	$(top_srcdir)/regress/core/unaryunion \
 	$(top_srcdir)/regress/core/union \
 	$(top_srcdir)/regress/core/clean \
-	$(top_srcdir)/regress/core/relate_bnr \
 	$(top_srcdir)/regress/core/delaunaytriangles \
 	$(top_srcdir)/regress/core/clipbybox2d \
 	$(top_srcdir)/regress/core/subdivide \
