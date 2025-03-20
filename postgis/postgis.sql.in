@@ -3732,6 +3732,13 @@ CREATE OR REPLACE FUNCTION ST_OrientedEnvelope(geometry)
 	LANGUAGE 'c' IMMUTABLE STRICT PARALLEL SAFE
 	_COST_HIGH;
 
+-- Availability: 3.6.0
+CREATE OR REPLACE FUNCTION ST_Skeleton(polys geometry, points geometry DEFAULT NULL, tolerance float8 DEFAULT 0.0, conditioning float8 DEFAULT 0.0)
+	RETURNS geometry
+	AS 'MODULE_PATHNAME', 'ST_Skeleton'
+	LANGUAGE 'c' IMMUTABLE PARALLEL SAFE
+	_COST_HIGH;
+
 -- Availability: 2.0.0
 CREATE OR REPLACE FUNCTION ST_OffsetCurve(line geometry, distance float8, params text DEFAULT '')
 RETURNS geometry

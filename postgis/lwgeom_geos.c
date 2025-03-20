@@ -2741,3 +2741,76 @@ Datum LWGEOM_dfullywithin(PG_FUNCTION_ARGS)
 
 	PG_RETURN_BOOL(contained == 1);
 }
+
+
+/*
+ * ST_Skeleton(polygons, points, tolerance, conditioning)
+ *
+ * Returns a "medial skeleton", which is equidistant
+ * from the rings of the polygonal argument and connects up the
+ * provided points arguments. It is expected that the
+ * points will be on/near the polygonal boundary.
+ * Tolerance controls how much small structure is collapsed
+ * away (should be consistent with ground resolution of the
+ * feature) and conditioning controls how much extra detail
+ * is added to add detail to relatively long segments in the
+ * boundary.
+ */
+Datum ST_Skeleton(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(ST_Skeleton);
+Datum ST_Skeleton(PG_FUNCTION_ARGS)
+{
+	GSERIALIZED *g_polys = NULL;
+	GSERIALIZED *g_pts = NULL;
+	GSERIALIZED *g_skeleton = NULL;
+	GEOSGeometry *geos_polys = NULL;
+	GEOSGeometry *geos_pts = NULL;
+	GEOSGeometry *geos_skeleton = NULL;
+	double tolerance = 0.0;
+	double conditioningLength = 0.0;
+
+	if (PG_ARGISNULL(0))
+		PG_RETURN_NULL();
+
+	g_polys = PG_GETARG_GSERIALIZED_P(0);
+
+	if (!PG_ARGISNULL(1)) {
+		g_pts = PG_GETARG_GSERIALIZED_P(1);
+	}
+
+	if (!PG_ARGISNULL(2)) {
+		tolerance = PG_GETARG_FLOAT8(2);
+	}
+
+	if (!PG_ARGISNULL(3)) {
+		conditioningLength = PG_GETARG_FLOAT8(3);
+	}
+
+	initGEOS(lwpgnotice, lwgeom_geos_error);
+
+	geos_polys = POSTGIS2GEOS(g_polys);
+	if (!geos_polys)
+		HANDLE_GEOS_ERROR("Geometry could not be converted to GEOS");
+
+	if (g_pts)
+	{
+		geos_pts = POSTGIS2GEOS(g_pts);
+		if (!geos_pts) {
+			GEOSGeom_destroy(geos_polys);
+			HANDLE_GEOS_ERROR("Geometry could not be converted to GEOS");
+		}
+	}
+
+	geos_skeleton = GEOSSkeleton(geos_polys, geos_pts, tolerance, conditioningLength);
+
+	GEOSGeom_destroy(geos_pts);
+	GEOSGeom_destroy(geos_polys);
+
+	g_skeleton = GEOS2POSTGIS(geos_skeleton, false);
+	GEOSGeom_destroy(geos_skeleton);
+
+	PG_FREE_IF_COPY(g_polys, 0);
+	PG_FREE_IF_COPY(g_pts, 1);
+	PG_RETURN_POINTER(g_skeleton);
+}
+
