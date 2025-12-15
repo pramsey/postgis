@@ -578,12 +578,12 @@ static LWPOLY* lwpoly_from_wkb_state(wkb_parse_state *s)
 			return NULL;
 		}
 
-		// /* Skip zero-member rings, they add nothing */
-		// if ( pa->npoints == 0)
-		// {
-		// 	LWDEBUGF(2, "Skipping empty ring [%d]", i);
-		// 	continue;
-		// }
+		/* Skip zero-member rings, they add nothing */
+		if ( pa->npoints == 0)
+		{
+			LWDEBUGF(2, "Skipping empty ring [%d]", i);
+			continue;
+		}
 
 		/* Add ring to polygon */
 		if ( lwpoly_add_ring(poly, pa) == LW_FAILURE )
