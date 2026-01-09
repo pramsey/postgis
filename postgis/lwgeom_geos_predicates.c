@@ -46,6 +46,7 @@
 
 
 /* Prototypes for SQL-bound functions */
+Datum PreparedDWithin(PG_FUNCTION_ARGS);
 Datum relate_full(PG_FUNCTION_ARGS);
 Datum relate_pattern(PG_FUNCTION_ARGS);
 Datum disjoint(PG_FUNCTION_ARGS);
@@ -1015,6 +1016,108 @@ Datum relate_full(PG_FUNCTION_ARGS)
 	PG_FREE_IF_COPY(geom2, 1);
 
 	PG_RETURN_TEXT_P(result);
+}
+
+
+
+
+/*
+ * XXXXXXXXX
+ *
+ * ST_DWithin(geom1, geom2, radius) returns boolean
+ *
+ */
+
+/*
+create table t (geom geometry, id integer);
+truncate t;
+insert into t (geom, id) values (st_buffer('POINT(0 0)'::geometry, 100, 64), -1000);
+insert into t select st_point(90, a) as geom, a as id from generate_series(-100, 100) a;
+
+select count(*) from t a join t b on st_prepdwithin(a.geom, b.geom, 5) where a.id = -1000;
+
+*/
+
+
+PG_FUNCTION_INFO_V1(PreparedDWithin);
+Datum PreparedDWithin(PG_FUNCTION_ARGS)
+{
+
+	double tolerance = PG_GETARG_FLOAT8(2);
+	double mindist;
+
+#if POSTGIS_GEOS_VERSION < 31000
+	const GSERIALIZED *geom1 = PG_GETARG_GSERIALIZED_P(0);
+	const GSERIALIZED *geom2 = PG_GETARG_GSERIALIZED_P(1);
+	LWGEOM *lwgeom1 = lwgeom_from_gserialized(geom1);
+	LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
+	mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
+	PG_RETURN_BOOL(tolerance >= mindist);
+
+#else
+	SHARED_GSERIALIZED *shared_geom1 = ToastCacheGetGeometry(fcinfo, 0);
+	SHARED_GSERIALIZED *shared_geom2 = ToastCacheGetGeometry(fcinfo, 1);
+	const GSERIALIZED *geom1 = shared_gserialized_get(shared_geom1);
+	const GSERIALIZED *geom2 = shared_gserialized_get(shared_geom2);
+	PrepGeomCache *prep_cache = NULL;
+	const size_t small_threshold = 1024;
+	char is_dwithin = -1;
+
+	elog(NOTICE, "gserialized_get_type(geom1) == %d", gserialized_get_type(geom1));
+	elog(NOTICE, "gserialized_get_type(geom2) == %d", gserialized_get_type(geom2));
+
+	/*
+	 * Only enter the GEOS code line if one of the operands is large
+	 * enough that the win from indexing will exceed the loss from
+	 * GEOS fixed overhead.
+	 */
+	bool use_prepared =
+		(LWSIZE_GET(geom1->size) > small_threshold) ||
+		(LWSIZE_GET(geom2->size) > small_threshold);
+
+	/*
+	 * Error out early for mismatch SRID or empty inputs
+	 */
+	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
+	if (gserialized_is_empty(geom1) || gserialized_is_empty(geom2))
+		PG_RETURN_BOOL(false);
+
+	/*
+	 * Only enter GEOS/PreparedGeometry code line if objects
+	 * are big enough and cache is populated.
+	 */
+	if (use_prepared)
+	{
+		initGEOS(lwpgnotice, lwgeom_geos_error);
+		prep_cache = GetPrepGeomCache(fcinfo, shared_geom1, shared_geom2);
+		if (prep_cache && prep_cache->prepared_geom)
+		{
+			GEOSGeometry *g = NULL;
+			if (prep_cache->gcache.argnum == 1)
+				g = POSTGIS2GEOS(geom2);
+			else
+				g = POSTGIS2GEOS(geom1);
+
+			if (!g) HANDLE_GEOS_ERROR("Geometry could not be converted to GEOS");
+			is_dwithin = GEOSPreparedDistanceWithin(prep_cache->prepared_geom, g, tolerance);
+			if (is_dwithin == 2) HANDLE_GEOS_ERROR("GEOSPreparedDistanceWithin");
+			GEOSGeom_destroy(g);
+			elog(NOTICE, "GEOSPreparedDistanceWithin");
+		}
+	}
+
+	if (is_dwithin < 0)
+	{
+		LWGEOM *lwgeom1 = lwgeom_from_gserialized(geom1);
+		LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
+		mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
+		is_dwithin = (tolerance >= mindist);
+		elog(NOTICE, "lwgeom_mindistance2d_tolerance");
+	}
+
+	PG_RETURN_BOOL(is_dwithin);
+
+#endif
 }
 
 
