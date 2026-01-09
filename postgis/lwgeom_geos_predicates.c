@@ -1063,8 +1063,8 @@ Datum PreparedDWithin(PG_FUNCTION_ARGS)
 	const size_t small_threshold = 1024;
 	char is_dwithin = -1;
 
-	elog(NOTICE, "gserialized_get_type(geom1) == %d", gserialized_get_type(geom1));
-	elog(NOTICE, "gserialized_get_type(geom2) == %d", gserialized_get_type(geom2));
+	// elog(NOTICE, "gserialized_get_type(geom1) == %d", gserialized_get_type(geom1));
+	// elog(NOTICE, "gserialized_get_type(geom2) == %d", gserialized_get_type(geom2));
 
 	/*
 	 * Only enter the GEOS code line if one of the operands is large
@@ -1102,7 +1102,7 @@ Datum PreparedDWithin(PG_FUNCTION_ARGS)
 			is_dwithin = GEOSPreparedDistanceWithin(prep_cache->prepared_geom, g, tolerance);
 			if (is_dwithin == 2) HANDLE_GEOS_ERROR("GEOSPreparedDistanceWithin");
 			GEOSGeom_destroy(g);
-			elog(NOTICE, "GEOSPreparedDistanceWithin");
+			// elog(NOTICE, "GEOSPreparedDistanceWithin");
 		}
 	}
 
@@ -1112,7 +1112,7 @@ Datum PreparedDWithin(PG_FUNCTION_ARGS)
 		LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
 		mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
 		is_dwithin = (tolerance >= mindist);
-		elog(NOTICE, "lwgeom_mindistance2d_tolerance");
+		// elog(NOTICE, "lwgeom_mindistance2d_tolerance");
 	}
 
 	PG_RETURN_BOOL(is_dwithin);
