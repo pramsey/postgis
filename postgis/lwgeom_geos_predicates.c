@@ -1019,42 +1019,19 @@ Datum relate_full(PG_FUNCTION_ARGS)
 }
 
 
-
-
 /*
- * XXXXXXXXX
- *
  * ST_DWithin(geom1, geom2, radius) returns boolean
  *
+ * For GEOS >= 3.10, this is a cached predicate implementation much
+ * like the other functions in this module. As with the other prepared
+ * predicates, the utility of the caching/preparation is a function
+ * of the size of the inputs, in particular the cached input, and
+ * that caching only happens if the input shows up multiple times in
+ * a row, which mostly is a result of either a literal or a
+ * nested loop join. The size of the inputs is used as an initial
+ * pre-check on whether to engage the geos/prepared geometry
+ * machinery.
  */
-
-/*
-create table t (geom geometry, id integer);
-truncate t;
-insert into t (geom, id) values (st_buffer('POINT(0 0)'::geometry, 100, 64), -1000);
-insert into t select st_point(90, a) as geom, a as id from generate_series(-100, 100) a;
-
-select count(*) from t a join t b on st_prepdwithin(a.geom, b.geom, 5) where a.id = -1000;
-
-with target as (
-select gid from parcels where st_memsize(geom) > 1024 order by st_memsize(geom) asc limit 1
-)
-select count(*) from
-target,
-parcels a join parcels b on st_prepdwithin(a.geom, b.geom, 100)
-where a.gid = target.gid
-
-with target as (
-select gid from parcels where st_memsize(geom) > 1024 order by st_memsize(geom) asc limit 1
-)
-select count(*) from
-target,
-parcels a join parcels b on st_prepdwithin(a.geom, b.geom, 100)
-where a.gid = target.gid
-
-*/
-
-
 PG_FUNCTION_INFO_V1(LWGEOM_dwithin);
 Datum LWGEOM_dwithin(PG_FUNCTION_ARGS)
 {
@@ -1080,16 +1057,16 @@ Datum LWGEOM_dwithin(PG_FUNCTION_ARGS)
 	char is_dwithin = -1;
 
 	/*
-	 * Only enter the GEOS code line if one of the operands is large
-	 * enough that the win from indexing will exceed the loss from
-	 * GEOS fixed overhead.
+	 * Only enter the GEOS/PreparedGeometry code line if one of the
+	 * operands is large enough that the win from indexing will exceed
+	 * the loss from GEOS fixed overhead.
 	 */
 	bool use_prepared =
 		(LWSIZE_GET(geom1->size) > small_threshold) ||
 		(LWSIZE_GET(geom2->size) > small_threshold);
 
 	/*
-	 * Error out early for mismatch SRID or empty inputs
+	 * Error out early for mismatched SRID or empty inputs.
 	 */
 	gserialized_error_if_srid_mismatch(geom1, geom2, __func__);
 	if (gserialized_is_empty(geom1) || gserialized_is_empty(geom2))
@@ -1118,6 +1095,10 @@ Datum LWGEOM_dwithin(PG_FUNCTION_ARGS)
 		}
 	}
 
+	/*
+	 * If for any reason we did not use GEOS/PreparedGeometry, we still
+	 * need an answer, so use the brute force implementation.
+	 */
 	if (is_dwithin < 0)
 	{
 		LWGEOM *lwgeom1 = lwgeom_from_gserialized(geom1);
