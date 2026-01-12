@@ -1065,6 +1065,9 @@ Datum LWGEOM_dwithin(PG_FUNCTION_ARGS)
 		(LWSIZE_GET(geom1->size) > small_threshold) ||
 		(LWSIZE_GET(geom2->size) > small_threshold);
 
+	if (tolerance < 0)
+		elog(ERROR, "Tolerance cannot be less than zero");
+
 	/*
 	 * Error out early for mismatched SRID or empty inputs.
 	 */
