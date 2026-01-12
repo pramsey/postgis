@@ -70,8 +70,7 @@ enum ST_FUNCTION_IDX
 	ST_3DDFULLYWITHIN_IDX = 13,
 	ST_LINECROSSINGDIRECTION_IDX = 14,
 	ST_ORDERINGEQUALS_IDX = 15,
-	ST_EQUALS_IDX = 16,
-	ST_PREPDWITHIN_IDX = 17
+	ST_EQUALS_IDX = 16
 };
 
 static const int16 GeometryStrategies[] = {
@@ -91,8 +90,7 @@ static const int16 GeometryStrategies[] = {
 	[ST_3DDFULLYWITHIN_IDX]         = RTOverlapStrategyNumber,
 	[ST_LINECROSSINGDIRECTION_IDX]  = RTOverlapStrategyNumber,
 	[ST_ORDERINGEQUALS_IDX]         = RTSameStrategyNumber,
-	[ST_EQUALS_IDX]                 = RTSameStrategyNumber,
-	[ST_PREPDWITHIN_IDX]                = RTOverlapStrategyNumber,
+	[ST_EQUALS_IDX]                 = RTSameStrategyNumber
 };
 
 /* We use InvalidStrategy for the functions that don't currently exist for geography */
@@ -113,8 +111,7 @@ static const int16 GeographyStrategies[] = {
 	[ST_3DDFULLYWITHIN_IDX]         = InvalidStrategy,
 	[ST_LINECROSSINGDIRECTION_IDX]  = InvalidStrategy,
 	[ST_ORDERINGEQUALS_IDX]         = InvalidStrategy,
-	[ST_EQUALS_IDX]                 = InvalidStrategy,
-	[ST_PREPDWITHIN_IDX]                 = InvalidStrategy
+	[ST_EQUALS_IDX]                 = InvalidStrategy
 };
 
 static int16
@@ -159,7 +156,6 @@ typedef struct
 static const IndexableFunction IndexableFunctions[] = {
 	{"st_intersects", ST_INTERSECTS_IDX, 2, 0, 2},
 	{"st_dwithin", ST_DWITHIN_IDX, 3, 3, 2},
-	{"st_prepdwithin", ST_PREPDWITHIN_IDX, 3, 3, 2},
 	{"st_contains", ST_CONTAINS_IDX, 2, 0, 2},
 	{"st_within", ST_WITHIN_IDX, 2, 0, 2},
 	{"st_touches", ST_TOUCHES_IDX, 2, 0, 2},

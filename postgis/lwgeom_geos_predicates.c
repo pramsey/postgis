@@ -46,7 +46,7 @@
 
 
 /* Prototypes for SQL-bound functions */
-Datum PreparedDWithin(PG_FUNCTION_ARGS);
+Datum LWGEOM_dwithin(PG_FUNCTION_ARGS);
 Datum relate_full(PG_FUNCTION_ARGS);
 Datum relate_pattern(PG_FUNCTION_ARGS);
 Datum disjoint(PG_FUNCTION_ARGS);
@@ -1036,11 +1036,27 @@ insert into t select st_point(90, a) as geom, a as id from generate_series(-100,
 
 select count(*) from t a join t b on st_prepdwithin(a.geom, b.geom, 5) where a.id = -1000;
 
+with target as (
+select gid from parcels where st_memsize(geom) > 1024 order by st_memsize(geom) asc limit 1
+)
+select count(*) from
+target,
+parcels a join parcels b on st_prepdwithin(a.geom, b.geom, 100)
+where a.gid = target.gid
+
+with target as (
+select gid from parcels where st_memsize(geom) > 1024 order by st_memsize(geom) asc limit 1
+)
+select count(*) from
+target,
+parcels a join parcels b on st_prepdwithin(a.geom, b.geom, 100)
+where a.gid = target.gid
+
 */
 
 
-PG_FUNCTION_INFO_V1(PreparedDWithin);
-Datum PreparedDWithin(PG_FUNCTION_ARGS)
+PG_FUNCTION_INFO_V1(LWGEOM_dwithin);
+Datum LWGEOM_dwithin(PG_FUNCTION_ARGS)
 {
 
 	double tolerance = PG_GETARG_FLOAT8(2);
@@ -1062,9 +1078,6 @@ Datum PreparedDWithin(PG_FUNCTION_ARGS)
 	PrepGeomCache *prep_cache = NULL;
 	const size_t small_threshold = 1024;
 	char is_dwithin = -1;
-
-	// elog(NOTICE, "gserialized_get_type(geom1) == %d", gserialized_get_type(geom1));
-	// elog(NOTICE, "gserialized_get_type(geom2) == %d", gserialized_get_type(geom2));
 
 	/*
 	 * Only enter the GEOS code line if one of the operands is large
@@ -1102,7 +1115,6 @@ Datum PreparedDWithin(PG_FUNCTION_ARGS)
 			is_dwithin = GEOSPreparedDistanceWithin(prep_cache->prepared_geom, g, tolerance);
 			if (is_dwithin == 2) HANDLE_GEOS_ERROR("GEOSPreparedDistanceWithin");
 			GEOSGeom_destroy(g);
-			// elog(NOTICE, "GEOSPreparedDistanceWithin");
 		}
 	}
 
@@ -1112,7 +1124,6 @@ Datum PreparedDWithin(PG_FUNCTION_ARGS)
 		LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
 		mindist = lwgeom_mindistance2d_tolerance(lwgeom1, lwgeom2, tolerance);
 		is_dwithin = (tolerance >= mindist);
-		// elog(NOTICE, "lwgeom_mindistance2d_tolerance");
 	}
 
 	PG_RETURN_BOOL(is_dwithin);
