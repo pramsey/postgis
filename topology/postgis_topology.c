@@ -3379,6 +3379,7 @@ cb_getEdgeWithinBox2D(const LWT_BE_TOPOLOGY *topo, const GBOX *box, uint64_t *nu
   }
   else if ( elems_requested > 0 )
   {
+    appendStringInfoString(sql, "ORDER BY 1 ");
     appendStringInfo(sql, " LIMIT %d", elems_requested);
   }
   POSTGIS_DEBUGF(1,"cb_getEdgeWithinBox2D: query is: %s", sql->data);
